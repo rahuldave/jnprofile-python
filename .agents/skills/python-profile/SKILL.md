@@ -29,6 +29,9 @@ The default tools are `lint` and `test`.
 - **`just verify`** runs every installed check of each language, then `git
   diff --check`. For Python, the checks are `fmt --check`, `lint`, `test`
   and `typecheck`, for each tool that is installed.
+- **With more than one language**, a combined recipe such as `just test x`
+  gives the same arguments to each language. To give arguments to one
+  language, run `just python test x`.
 
 If the Justfile of the project has its own recipe with the same name, that
 recipe runs. Then `just python NAME` runs the recipe of the profile.
