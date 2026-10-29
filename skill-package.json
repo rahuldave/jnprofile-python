@@ -1,0 +1,25 @@
+{
+  "schema": "https://rahuldave.github.io/agent_skill_package_maker/schema/skill-package.v1.json",
+  "version": 1,
+  "repository": {
+    "owner": "rahuldave",
+    "name": "jnprofile-python",
+    "url": "https://github.com/rahuldave/jnprofile-python"
+  },
+  "skills": [
+    {"name": "python-profile", "path": ".agents/skills/python-profile"}
+  ],
+  "install_extras": {
+    "files": [".agents/just/python"]
+  },
+  "executables": {
+    "required": [
+      {"name": "just", "check": "just --version"},
+      {"name": "uv", "check": "uv --version", "description": "Runs Python, and the tools of the profile."}
+    ],
+    "optional": []
+  },
+  "npx": {
+    "supported": false
+  }
+}

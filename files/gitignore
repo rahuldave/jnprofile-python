@@ -1,0 +1,11 @@
+# Written by jnprofile-python when the project had no .gitignore. The file is yours: change it as the project needs.
+.venv/
+.local/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/

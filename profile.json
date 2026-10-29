@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "name": "python",
+  "about": "a Python project with uv",
+  "detect": [
+    "pyproject.toml",
+    "uv.lock"
+  ],
+  "manifest": "pyproject.toml",
+  "init": {
+    "file": "pyproject.toml",
+    "command": [
+      "uv",
+      "init",
+      "--bare",
+      "--no-workspace"
+    ]
+  },
+  "uv_default_groups": "all",
+  "choices": {
+    "tasker": true,
+    "prose": true
+  },
+  "add": [
+    "uv",
+    "add",
+    "--group",
+    "{group}"
+  ],
+  "remove": [
+    "uv",
+    "remove",
+    "--group",
+    "{group}"
+  ],
+  "base": {
+    "recipes": "base.just",
+    "files": {
+      ".gitignore": "files/gitignore"
+    }
+  },
+  "tools": {
+    "lint": {
+      "group": "lint",
+      "packages": [
+        "ruff",
+        "pre-commit"
+      ],
+      "recipes": "lint.just",
+      "verify": [
+        "fmt --check",
+        "lint"
+      ],
+      "files": {
+        "ruff.toml": "files/ruff.toml",
+        ".pre-commit-config.yaml": "files/pre-commit-config.yaml"
+      },
+      "skip_if": {
+        "ruff.toml": [
+          "pyproject.toml",
+          "[tool.ruff"
+        ]
+      },
+      "before_remove": {
+        "package": "pre-commit",
+        "git_hook": "pre-commit",
+        "marker": "INSTALL_PYTHON",
+        "command": [
+          "uv",
+          "run",
+          "--group",
+          "lint",
+          "pre-commit",
+          "uninstall"
+        ]
+      }
+    },
+    "test": {
+      "group": "test",
+      "packages": [
+        "pytest",
+        "pytest-cov"
+      ],
+      "recipes": "test.just",
+      "verify": [
+        "test"
+      ]
+    },
+    "typecheck": {
+      "group": "lint",
+      "packages": [
+        "ty"
+      ],
+      "recipes": "typecheck.just",
+      "verify": [
+        "typecheck"
+      ],
+      "files": {
+        "ty.toml": "files/ty.toml"
+      },
+      "skip_if": {
+        "ty.toml": [
+          "pyproject.toml",
+          "[tool.ty"
+        ]
+      }
+    }
+  },
+  "default_tools": [
+    "lint",
+    "test"
+  ]
+}

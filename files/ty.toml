@@ -1,0 +1,3 @@
+[src]
+# The folders that the installer manages hold copies from other packages, not the code of this project
+exclude = [".agents", ".claude", ".codex"]
