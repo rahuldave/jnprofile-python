@@ -33,8 +33,10 @@ The default tools are `lint` and `test`.
   gives the same arguments to each language. To give arguments to one
   language, run `just python test x`.
 
-If the Justfile of the project has its own recipe with the same name, that
-recipe runs. Then `just python NAME` runs the recipe of the profile.
+A project that jnterfaces started has the combined recipes, such as `just
+lint` and `just verify`. If its Justfile has its own recipe with the
+same name, that recipe runs. A project with a Justfile of its own gets the
+module only, so it runs `just python NAME`.
 
 ## Where the files are
 
