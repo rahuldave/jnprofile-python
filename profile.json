@@ -35,9 +35,21 @@
   ],
   "base": {
     "recipes": "base.just",
-    "files": {
-      ".gitignore": "files/gitignore",
-      ".worktreedisposable": "files/worktreedisposable"
+    "lines": {
+      ".gitignore": [
+        ".venv/",
+        ".local/",
+        "__pycache__/",
+        "*.pyc",
+        "dist/",
+        "build/"
+      ],
+      ".worktreedisposable": [
+        "# uv sync --locked makes .venv again. A package that uv pip install added is not in uv.lock, so add packages with uv add.",
+        ".venv/",
+        "__pycache__/",
+        "*.pyc"
+      ]
     }
   },
   "tools": {
@@ -74,6 +86,14 @@
           "pre-commit",
           "uninstall"
         ]
+      },
+      "lines": {
+        ".gitignore": [
+          ".ruff_cache/"
+        ],
+        ".worktreedisposable": [
+          ".ruff_cache/"
+        ]
       }
     },
     "test": {
@@ -85,7 +105,19 @@
       "recipes": "test.just",
       "verify": [
         "test"
-      ]
+      ],
+      "lines": {
+        ".gitignore": [
+          ".pytest_cache/",
+          ".coverage",
+          "htmlcov/"
+        ],
+        ".worktreedisposable": [
+          ".pytest_cache/",
+          ".coverage",
+          "htmlcov/"
+        ]
+      }
     },
     "typecheck": {
       "group": "lint",

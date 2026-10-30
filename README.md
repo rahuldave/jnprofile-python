@@ -28,7 +28,7 @@ The machine needs `just` and `uv`. `uv` runs Python and the tools.
 |---|---|
 | `profile.json` | The profile: its manifest, the commands that add and remove packages, and its tools. |
 | `.agents/just/python/` | One recipe file for each tool. The installer copies the folder into the project. |
-| `files/` | The config files that a tool copies when the project has none. |
+| `files/` | The config files of the tools. `just install` writes one when the project has none, and `just uninstall` removes it when nobody changed it. |
 | `.agents/skills/python-profile/` | The skill that tells an agent how to use the recipes. |
 
 ## License
