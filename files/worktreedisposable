@@ -1,0 +1,11 @@
+# Written by jnprofile-python when the project had no .worktreedisposable. The file is yours: change it as the project
+# needs. just worktrees-prune reads it: the ignored files that these gitignore patterns name can be made again, so they
+# do not keep a worktree. uv sync --locked makes .venv again, and the tools make their caches again. A package that
+uv pip install added is not in uv.lock, so it does not come back: add it with uv add instead.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
