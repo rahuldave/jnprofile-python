@@ -12,14 +12,24 @@ config files, and adds its recipes. `just uninstall lint` takes them out.
 
 ## The tools and their recipes
 
-| Tool | Packages, in the group | Recipes | Config files |
-|---|---|---|---|
-| none, always there | none | `setup` | `.gitignore`, `.worktreedisposable` |
-| `lint` | ruff, pre-commit, in `lint` | `fmt`, `lint`, `hook` | `ruff.toml`, `.pre-commit-config.yaml` |
-| `test` | pytest, pytest-cov, in `test` | `test`, `cov` | none |
-| `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` |
+| Tool | Packages, in the group | Recipes | Config files | Lines in `.gitignore` and `.worktreedisposable` |
+|---|---|---|---|---|
+| none, always there | none | `setup` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
+| `lint` | ruff, pre-commit, in `lint` | `fmt`, `lint`, `hook` | `ruff.toml`, `.pre-commit-config.yaml` | `.ruff_cache/` |
+| `test` | pytest, pytest-cov, in `test` | `test`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/` |
+| `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` | none |
 
 The default tools are `lint` and `test`.
+
+## Lines in shared files
+
+A tool can also add lines to a file that other profiles and you share, such
+as `.gitignore`. `profile.json` lists these lines under `lines`. `just
+install` writes the lines of each tool in a block of their own, at the start
+of the file. The begin comment of a block names the tool, the command and
+the entry in `.agents/stack-log.jsonl`. `just uninstall` of the tool takes
+its lines out again, unless another profile needs them. Your own lines come
+after the blocks, and the installer does not change them.
 
 ## How to run a recipe
 
