@@ -36,7 +36,8 @@
   "base": {
     "recipes": "base.just",
     "files": {
-      ".gitignore": "files/gitignore"
+      ".gitignore": "files/gitignore",
+      ".worktreedisposable": "files/worktreedisposable"
     }
   },
   "tools": {

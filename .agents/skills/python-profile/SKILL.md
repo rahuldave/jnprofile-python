@@ -14,7 +14,7 @@ config files, and adds its recipes. `just uninstall lint` takes them out.
 
 | Tool | Packages, in the group | Recipes | Config files |
 |---|---|---|---|
-| none, always there | none | `setup` | `.gitignore` |
+| none, always there | none | `setup` | `.gitignore`, `.worktreedisposable` |
 | `lint` | ruff, pre-commit, in `lint` | `fmt`, `lint`, `hook` | `ruff.toml`, `.pre-commit-config.yaml` |
 | `test` | pytest, pytest-cov, in `test` | `test`, `cov` | none |
 | `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` |
