@@ -1,7 +1,8 @@
-# ruff settings from jnprofile-python, the python profile of jnterfaces. The file is yours: change it as the project needs.
+# The ruff settings of the python profile of jnterfaces. To change one, set it in ruff.toml at the top of the project.
 # The longest line, for the formatter and the linter
 line-length = 120
-# The folders that the installer manages hold copies from other packages, not the code of this project
+# The folders that the installer manages hold copies from other packages, not the code of this project. Each is a
+# name, not a path, so it holds wherever ruff reads this file from.
 extend-exclude = [".agents", ".claude", ".codex"]
 
 [lint]
