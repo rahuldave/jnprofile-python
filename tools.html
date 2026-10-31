@@ -1,0 +1,104 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="generator" content="smalldocs-0.5.4"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"><title>The tools – jnprofile-python</title><link rel="stylesheet" href="site_libs/themes/cosmo.min.css" data-mode="light" class="quarto-color-scheme" id="quarto-bootstrap-light" media="not all and (prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/themes/darkly.min.css" data-mode="dark" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap-dark" media="(prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/bootstrap-icons/bootstrap-icons.min.css"><link rel="stylesheet" href="site_libs/smalldocs.css"><meta name="smalldocs:offset" content="./"><script src="site_libs/bootstrap/bootstrap.bundle.min.js"></script><script src="site_libs/fuse/fuse.min.js"></script><script src="site_libs/smalldocs.js" defer></script><script>(function(){var d=document.documentElement,s=null;try{s=localStorage.getItem('smalldocs-scheme')}catch(e){}var alt=s?s==='alternate':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);var ls=document.querySelectorAll('link.quarto-color-scheme');if(alt)d.dataset.scheme='alternate';if(s)ls.forEach(function(l){var on=l.classList.contains('quarto-color-alternate')===alt;if(on)l.setAttribute('blocking','render');l.media=on?'all':'not all'});var on=ls[alt?1:0];if(on&&on.dataset.mode==='dark')d.classList.add('quarto-dark')})();</script></head><body class="nav-fixed"><header id="quarto-header" class="headroom sticky-top"><nav class="navbar navbar-expand-lg sd-navbar-default"><div class="navbar-container container-fluid"><div class="navbar-brand-container mx-auto"><a class="navbar-brand" href="index.html"><span class="navbar-title">jnprofile-python</span></a></div><button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="navbarCollapse"><ul class="navbar-nav navbar-nav-scroll me-auto"><li class="nav-item"><a class="nav-link" href="index.html"><span class="menu-text">Home</span></a></li><li class="nav-item"><a class="nav-link active" href="tools.html" aria-current="page"><span class="menu-text">Tools</span></a></li></ul><ul class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="nav-menu-1" role="link" data-bs-toggle="dropdown" aria-expanded="false"><span class="menu-text">Projects</span></a><ul class="dropdown-menu" aria-labelledby="nav-menu-1"><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnterfaces/"><span class="menu-text">jnterfaces</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-python/"><span class="menu-text">jnprofile-python</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-typescript/"><span class="menu-text">jnprofile-typescript</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/agent_gest_git_skills/"><span class="menu-text">agent_gest_git_skills</span></a></li></ul></li><li class="nav-item compact"><a class="nav-link" href="https://github.com/rahuldave/jnprofile-python" aria-label="github"><i class="bi bi-github" role="img"></i></a></li><li class="nav-item compact"><a class="quarto-color-scheme-toggle nav-link" href="" title="Toggle dark mode" onclick="window.smalldocsToggleScheme(); return false;"><i class="bi"></i></a></li></ul><div class="quarto-navbar-tools"><div class="smalldocs-search" id="quarto-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control form-control-sm" placeholder="Search" aria-label="Search" autocomplete="off"><div class="smalldocs-search-results dropdown-menu"></div></div></div></div></div></nav></header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article has-margin"><div id="quarto-margin-sidebar" class="sidebar margin-sidebar"><nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">On this page</h2><ul><li><a href="#the-base" id="toc-the-base" class="nav-link" data-scroll-target="#the-base">The base</a></li><li><a href="#lint" id="toc-lint" class="nav-link" data-scroll-target="#lint">lint</a></li><li><a href="#test" id="toc-test" class="nav-link" data-scroll-target="#test">test</a></li><li><a href="#typecheck" id="toc-typecheck" class="nav-link" data-scroll-target="#typecheck">typecheck</a></li></ul></nav><div class="toc-actions"><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/blob/main/docs/tools.md" class="toc-action"><i class="bi bi-code"></i> View source</a></div><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/issues/new" class="toc-action"><i class="bi bi-chat-right"></i> Report an issue</a></div></div></div><main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title"><h1 class="title">The tools</h1></div><div class="quarto-title-meta"></div></header><p>Each tool of the profile brings its packages, its recipes and its parts. The installer adds the packages to a dependency group of <code>pyproject.toml</code> with <code>uv add</code>. The profile sets <code>tool.uv.default-groups = &quot;all&quot;</code>, so <code>uv sync</code> and <code>uv run</code> install every group.</p>
+<section id="the-base" class="level2">
+<h2 class="anchored" data-anchor-id="the-base">The base</h2>
+<p>Each project of the profile gets the base, with no tool.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just setup</code></td>
+<td>Installs Python and every dependency into <code>.venv</code>, as <code>uv.lock</code> says</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The base adds <code>.venv/</code>, <code>.local/</code>, <code>__pycache__/</code>, <code>*.pyc</code>, <code>dist/</code> and <code>build/</code> to <code>.gitignore</code>. It adds <code>.venv/</code>, <code>__pycache__/</code> and <code>*.pyc</code> to <code>.worktreedisposable</code>, the list of files that a command makes again, so that they do not keep a worktree.</p>
+</section>
+<section id="lint" class="level2">
+<h2 class="anchored" data-anchor-id="lint">lint</h2>
+<p>The packages are ruff and pre-commit, in the group <code>lint</code>.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just fmt</code></td>
+<td>Formats the code. Extra arguments go to ruff: <code>just fmt --check</code></td>
+</tr>
+<tr>
+<td><code>just lint</code></td>
+<td>Checks the code against the rules of ruff. Extra arguments go to ruff: <code>just lint --fix</code></td>
+</tr>
+<tr>
+<td><code>just hook</code></td>
+<td>Installs the git hook, which runs the checks of <code>.pre-commit-config.yaml</code> before every commit. Run it once for each clone</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The parts:</p>
+<ul>
+<li><strong><code>ruff.toml</code></strong>: an include of <code>.agents/config/python/ruff.toml</code>. That file sets <code>line-length = 120</code>, leaves out <code>.agents</code>, <code>.claude</code> and <code>.codex</code>, and selects the rules <code>E</code>, <code>W</code> and <code>F</code>. When your <code>pyproject.toml</code> has a <code>[tool.ruff]</code> table, the installer adds no part to <code>ruff.toml</code>, because ruff reads <code>ruff.toml</code> in place of the settings in <code>pyproject.toml</code>.</li>
+<li><strong><code>.pre-commit-config.yaml</code></strong>: one item of <code>repos</code> for each repository of checks. The checks are the checks of any file from pre-commit-hooks, then ruff, the linter and then the formatter.</li>
+</ul>
+<p>The tool adds <code>.ruff_cache/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+<p><code>just uninstall lint</code> also takes out the git hook that <code>just hook</code> installed.</p>
+</section>
+<section id="test" class="level2">
+<h2 class="anchored" data-anchor-id="test">test</h2>
+<p>The packages are pytest and pytest-cov, in the group <code>test</code>.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just test</code></td>
+<td>Runs the tests. Extra arguments go to pytest: <code>just test tests/unit</code>. A project with no tests yet passes</td>
+</tr>
+<tr>
+<td><code>just cov</code></td>
+<td>Runs the tests, and shows the lines that they ran</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The tool adds <code>.pytest_cache/</code>, <code>.coverage</code> and <code>htmlcov/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+</section>
+<section id="typecheck" class="level2">
+<h2 class="anchored" data-anchor-id="typecheck">typecheck</h2>
+<p>The package is ty, in the group <code>lint</code>.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just typecheck</code></td>
+<td>Checks the types. Extra arguments go to ty: <code>just typecheck src</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The part is a unit of <code>ty.toml</code>, the key <code>exclude</code> in the table <code>[src]</code>. It leaves out <code>.agents</code>, <code>.claude</code> and <code>.codex</code>. When your <code>pyproject.toml</code> has a <code>[tool.ty]</code> table, the installer adds no part to <code>ty.toml</code>, for the same reason.</p>
+</section>
+</main></div><footer class="footer"><div class="nav-footer"><div class="nav-footer-left">Part of <a href="https://rahuldave.github.io/jnterfaces/">jnterfaces</a> and its packages.</div><div class="nav-footer-center"></div><div class="nav-footer-right">Built with <a href="https://docs.smallish.dev/">smalldocs</a>.</div></div></footer></body></html>
