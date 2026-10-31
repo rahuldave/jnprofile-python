@@ -5,6 +5,9 @@ jnprofile-python is the Python profile of
 project in one language. It has tools, for example `lint`, and each tool
 brings its packages, its parts of the config files and its recipes.
 
+The documentation site is https://rahuldave.github.io/jnprofile-python/. It is built from `docs/`.
+`just docs` previews it, and `just docs-publish` publishes it to the branch `gh-pages`.
+
 ## Install
 
 Run this command in a project that has the jnterfaces installer:
