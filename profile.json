@@ -121,6 +121,41 @@
           ".coverage",
           "htmlcov/"
         ]
+      },
+      "parts": {
+        "pyproject.toml": "files/pytest.toml"
+      },
+      "skip_if": {
+        "pyproject.toml": [
+          [
+            "pyproject.toml",
+            "[tool.pytest]"
+          ],
+          [
+            "pytest.toml",
+            ""
+          ],
+          [
+            ".pytest.toml",
+            ""
+          ],
+          [
+            "pytest.ini",
+            ""
+          ],
+          [
+            ".pytest.ini",
+            ""
+          ],
+          [
+            "tox.ini",
+            "[pytest]"
+          ],
+          [
+            "setup.cfg",
+            "[tool:pytest]"
+          ]
+        ]
       }
     },
     "typecheck": {
