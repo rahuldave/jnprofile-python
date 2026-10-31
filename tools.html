@@ -79,6 +79,25 @@
 </table>
 </div>
 <p>The tool adds <code>.pytest_cache/</code>, <code>.coverage</code> and <code>htmlcov/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+<p>The tool also adds the item <code>&quot;.&quot;</code> to <code>tool.pytest.ini_options.pythonpath</code> in <code>pyproject.toml</code>. So a test in <code>tests/</code> can import a module at the top of the project, such as <code>app.py</code>.</p>
+<ul>
+<li>
+<p><strong>Your <code>pythonpath</code> list</strong> keeps its items, and gets <code>&quot;.&quot;</code> too.</p>
+</li>
+<li>
+<p><strong>A <code>pythonpath</code> string of yours</strong>, such as <code>&quot;src&quot;</code>, stays as it is. The installer adds nothing to it.</p>
+</li>
+<li>
+<p><strong>A pytest config of your own</strong> stops the part. pytest reads one config only, so the part would hide yours. The installer leaves out the part when the project has one of these:</p>
+<ul>
+<li><code>[tool.pytest]</code> with settings in <code>pyproject.toml</code>, which pytest 9 reads;</li>
+<li><code>pytest.toml</code>, <code>.pytest.toml</code>, <code>pytest.ini</code> or <code>.pytest.ini</code>;</li>
+<li><code>[pytest]</code> in <code>tox.ini</code>, or <code>[tool:pytest]</code> in <code>setup.cfg</code>.</li>
+</ul>
+<p>Then add <code>pythonpath = [&quot;.&quot;]</code> to your config yourself, if your tests need it.</p>
+<p>The guards apply when the part is new. If you add a pytest config after the install, the part stays in <code>pyproject.toml</code>, and pytest no longer reads it. Add <code>pythonpath = [&quot;.&quot;]</code> to your config, or run <code>just uninstall test</code> and <code>just install test</code> to take the part out.</p>
+</li>
+</ul>
 </section>
 <section id="typecheck" class="level2">
 <h2 class="anchored" data-anchor-id="typecheck">typecheck</h2>

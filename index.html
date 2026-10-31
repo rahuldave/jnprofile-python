@@ -48,6 +48,7 @@ just uninstall lint</code></pre></div><button title="Copy to Clipboard" class="c
 <ul>
 <li><strong><code>ruff.toml</code> gets an include.</strong> The installer writes the settings of the profile to <code>.agents/config/python/ruff.toml</code>, and adds <code>extend = &quot;.agents/config/python/ruff.toml&quot;</code> to your <code>ruff.toml</code>. A setting in your <code>ruff.toml</code> wins over the setting of the profile.</li>
 <li><strong><code>pyproject.toml</code> gets the unit <code>tool.uv.default-groups = &quot;all&quot;</code>.</strong> So <code>uv sync</code> and <code>uv run</code> install the dependency groups of every tool.</li>
+<li><strong>The <code>test</code> tool adds the unit <code>tool.pytest.ini_options.pythonpath = [&quot;.&quot;]</code> to <code>pyproject.toml</code>.</strong> So a test in <code>tests/</code> can import a module at the top of the project. A pytest config of your own, such as <code>pytest.ini</code>, stops the part.</li>
 <li><strong><code>ty.toml</code> and <code>.pre-commit-config.yaml</code> get units.</strong> A unit is one key or one item of a list. Each unit has a comment on the line before it, which names its owner.</li>
 <li><strong><code>.gitignore</code> and <code>.worktreedisposable</code> get a block of lines.</strong> A block starts and ends with a comment that names its owner.</li>
 </ul>
