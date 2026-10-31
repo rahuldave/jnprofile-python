@@ -94,6 +94,10 @@
         ".worktreedisposable": [
           ".ruff_cache/"
         ]
+      },
+      "parts": {
+        "ruff.toml": "files/ruff.toml",
+        ".pre-commit-config.yaml": "files/pre-commit-config.yaml"
       }
     },
     "test": {
@@ -136,6 +140,9 @@
           "pyproject.toml",
           "[tool.ty"
         ]
+      },
+      "parts": {
+        "ty.toml": "files/ty.toml"
       }
     }
   },
