@@ -44,6 +44,19 @@ The packages are pytest and pytest-cov, in the group `test`.
 
 The tool adds `.pytest_cache/`, `.coverage` and `htmlcov/` to `.gitignore` and to `.worktreedisposable`.
 
+The tool also adds the item `"."` to `tool.pytest.ini_options.pythonpath` in `pyproject.toml`. So a test in `tests/` can import a module at the top of the project, such as `app.py`.
+
+- **Your `pythonpath` list** keeps its items, and gets `"."` too.
+- **A `pythonpath` string of yours**, such as `"src"`, stays as it is. The installer adds nothing to it.
+- **A pytest config of your own** stops the part. pytest reads one config only, so the part would hide yours. The installer leaves out the part when the project has one of these:
+  - `[tool.pytest]` with settings in `pyproject.toml`, which pytest 9 reads;
+  - `pytest.toml`, `.pytest.toml`, `pytest.ini` or `.pytest.ini`;
+  - `[pytest]` in `tox.ini`, or `[tool:pytest]` in `setup.cfg`.
+
+  Then add `pythonpath = ["."]` to your config yourself, if your tests need it.
+
+  The guards apply when the part is new. If you add a pytest config after the install, the part stays in `pyproject.toml`, and pytest no longer reads it. Add `pythonpath = ["."]` to your config, or run `just uninstall test` and `just install test` to take the part out.
+
 ## typecheck
 
 The package is ty, in the group `lint`.

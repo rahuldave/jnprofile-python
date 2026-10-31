@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+# The tests import the modules at the top of the project, such as app.py, as they import an installed package
+pythonpath = ["."]
