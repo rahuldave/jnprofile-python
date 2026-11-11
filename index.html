@@ -4,7 +4,7 @@
 <h2 class="anchored" data-anchor-id="install">Install</h2>
 <p>Run this command in a project that has the jnterfaces installer:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash">just install --profile python</code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The command installs the tools <code>lint</code> and <code>test</code>. It also turns on the default roles of the profile, <code>tasker</code> and <code>prose</code>, unless you choose otherwise. <a href="https://rahuldave.github.io/jnterfaces/#roles">The roles</a> in the jnterfaces guide tells what each role installs. In a folder with no <code>pyproject.toml</code>, it first runs <code>uv init --bare --no-workspace</code>.</p>
+<p>In a folder with no <code>pyproject.toml</code>, the command first runs <code>uv init --bare --no-workspace</code>. It then installs the tools <code>lint</code> and <code>test</code>. If you do not choose other roles, it also turns on the default roles of the profile, <code>tasker</code> and <code>prose</code>. The section <a href="https://rahuldave.github.io/jnterfaces/#roles">The roles</a> of the jnterfaces guide says what each role installs.</p>
 <p>Then add or remove a tool:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash">just install typecheck
 just uninstall lint</code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -44,22 +44,22 @@ just uninstall lint</code></pre></div><button title="Copy to Clipboard" class="c
 </section>
 <section id="how-the-parts-work" class="level2">
 <h2 class="anchored" data-anchor-id="how-the-parts-work">How the parts work</h2>
-<p>A part is the piece of a shared config file that a tool owns. <code>just install</code> adds the part, and <code>just uninstall</code> takes out only that part. Your own settings stay.</p>
+<p>A part is the piece of a shared config file that a tool owns. <code>just install</code> adds the part, and <code>just uninstall</code> takes out only that part. Your own settings stay. A part is an include, a block of lines or one or more units. A unit is one key or one item of a list.</p>
 <ul>
 <li><strong><code>ruff.toml</code> gets an include.</strong> The installer writes the settings of the profile to <code>.agents/config/python/ruff.toml</code>, and adds <code>extend = &quot;.agents/config/python/ruff.toml&quot;</code> to your <code>ruff.toml</code>. A setting in your <code>ruff.toml</code> wins over the setting of the profile.</li>
 <li><strong><code>pyproject.toml</code> gets the unit <code>tool.uv.default-groups = &quot;all&quot;</code>.</strong> So <code>uv sync</code> and <code>uv run</code> install the dependency groups of every tool.</li>
-<li><strong>The <code>test</code> tool adds the unit <code>tool.pytest.ini_options.pythonpath = [&quot;.&quot;]</code> to <code>pyproject.toml</code>.</strong> So a test in <code>tests/</code> can import a module at the top of the project. A pytest config of your own, such as <code>pytest.ini</code>, stops the part.</li>
-<li><strong><code>ty.toml</code> and <code>.pre-commit-config.yaml</code> get units.</strong> A unit is one key or one item of a list. Each unit has a comment on the line before it, which names its owner.</li>
+<li><strong>The <code>test</code> tool adds the unit <code>tool.pytest.ini_options.pythonpath = [&quot;.&quot;]</code> to <code>pyproject.toml</code>.</strong> So a test in <code>tests/</code> can import a module at the top of the project. If you have a pytest config of your own, such as <code>pytest.ini</code>, the installer leaves out the part.</li>
+<li><strong><code>ty.toml</code> and <code>.pre-commit-config.yaml</code> get units.</strong> Each unit has a comment on the line before it, which names its owner.</li>
 <li><strong><code>.gitignore</code> and <code>.worktreedisposable</code> get a block of lines.</strong> A block starts and ends with a comment that names its owner.</li>
 </ul>
-<p>Do not edit a file under <code>.agents/config/</code>. Only the installer writes it. <a href="https://rahuldave.github.io/jnterfaces/stack-guide.html#shared-files-and-the-record">Shared files and the record</a> in the jnterfaces guide tells you how the installer keeps a record of each part.</p>
+<p>Do not edit a file under <code>.agents/config/</code>. Only the installer writes these files. The section <a href="https://rahuldave.github.io/jnterfaces/stack-guide.html#shared-files-and-the-record">Shared files and the record</a> of the jnterfaces guide says how the installer keeps a record of each part.</p>
 </section>
 <section id="the-other-sites" class="level2">
 <h2 class="anchored" data-anchor-id="the-other-sites">The other sites</h2>
 <ul>
 <li><a href="https://rahuldave.github.io/jnterfaces/">jnterfaces</a>: the installer, and the <code>just</code>, <code>jagt-protocol</code> and <code>cx</code> skills.</li>
 <li><a href="https://rahuldave.github.io/jnprofile-typescript/">jnprofile-typescript</a>: the TypeScript profile.</li>
-<li><a href="https://rahuldave.github.io/agent_gest_git_skills/">agent_gest_git_skills</a>: the tasker role and its g skills.</li>
+<li><a href="https://rahuldave.github.io/agent_gest_git_skills/">agent_gest_git_skills</a>: the tasker role and its g skills, the skills whose names start with g.</li>
 </ul>
 </section>
 </main></div><footer class="footer"><div class="nav-footer"><div class="nav-footer-left">Part of <a href="https://rahuldave.github.io/jnterfaces/">jnterfaces</a> and its packages.</div><div class="nav-footer-center"></div><div class="nav-footer-right">Built with <a href="https://docs.smallish.dev/">smalldocs</a>.</div></div></footer></body></html>
