@@ -33,7 +33,7 @@ The machine needs `just` and `uv`. `uv` runs Python and the tools.
 | Path | What it holds |
 |---|---|
 | `profile.json` | The profile: its manifest, the commands that add and remove packages, and its tools. |
-| `.agents/just/python/` | One recipe file for each tool. The installer copies the folder into the project. |
+| `.agents/just/python/` | One recipe file for each tool. The installer copies the folder into the project. A step of `just check`, such as `test`, has no shebang line, so that jlog, the program that logs each line of a recipe, logs the line of the step and its exit code. Its script is in a private recipe, which the step runs in one line with `just`. |
 | `files/` | The sources of the parts. For `ruff.toml`, `just install` copies the source to a file of its own under `.agents/config/` and adds an include of that file to `ruff.toml`. For the other config files, it adds the keys and the list items of the source. `just uninstall` takes the parts out. |
 | `.agents/skills/python-profile/` | The skill that tells an agent how to use the recipes. |
 
