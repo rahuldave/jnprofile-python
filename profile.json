@@ -7,6 +7,15 @@
     "uv.lock"
   ],
   "manifest": "pyproject.toml",
+  "code": [
+    "**/*.py"
+  ],
+  "tests": [
+    "tests/**",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/conftest.py"
+  ],
   "init": {
     "file": "pyproject.toml",
     "command": [
