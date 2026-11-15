@@ -65,8 +65,7 @@
     "lint": {
       "group": "lint",
       "packages": [
-        "ruff",
-        "pre-commit"
+        "ruff"
       ],
       "recipes": "lint.just",
       "verify": [
@@ -74,8 +73,7 @@
         "lint"
       ],
       "files": {
-        "ruff.toml": "files/ruff.toml",
-        ".pre-commit-config.yaml": "files/pre-commit-config.yaml"
+        "ruff.toml": "files/ruff.toml"
       },
       "skip_if": {
         "ruff.toml": [
@@ -105,8 +103,7 @@
         ]
       },
       "parts": {
-        "ruff.toml": "files/ruff.toml",
-        ".pre-commit-config.yaml": "files/pre-commit-config.yaml"
+        "ruff.toml": "files/ruff.toml"
       }
     },
     "test": {

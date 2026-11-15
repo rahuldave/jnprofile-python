@@ -5,7 +5,7 @@ project:
 website:
   title: jnprofile-python
   favicon: favicon.svg
-  description: "The Python profile of jnterfaces: ruff, pre-commit, ty and pytest, with uv"
+  description: "The Python profile of jnterfaces: ruff, ty and pytest, with uv"
   site-url: https://rahuldave.github.io/jnprofile-python/
   repo-url: https://github.com/rahuldave/jnprofile-python
   repo-subdir: docs

@@ -16,20 +16,20 @@ The base adds `.venv/`, `.local/`, `__pycache__/`, `*.pyc`, `dist/` and `build/`
 
 ## lint
 
-The packages are ruff and pre-commit, in the group `lint`.
+The package is ruff, in the group `lint`.
 
 | Recipe | What it does |
 |---|---|
 | `just fmt` | Formats the code. Extra arguments go to ruff: `just fmt --check` |
 | `just lint` | Checks the code against the rules of ruff. Extra arguments go to ruff: `just lint --fix` |
-| `just hook` | Installs the git hook, which runs the checks of `.pre-commit-config.yaml` before every commit. Run it once for each clone |
 
 The parts:
 
 - **`ruff.toml`**: an include of `.agents/config/python/ruff.toml`. That file sets `line-length = 120`, leaves out `.agents`, `.claude` and `.codex`, and selects the rules `E`, `W` and `F`. When your `pyproject.toml` has a `[tool.ruff]` table, the installer adds no part to `ruff.toml`, because ruff reads `ruff.toml` in place of the settings in `pyproject.toml`.
-- **`.pre-commit-config.yaml`**: one item of `repos` for each repository of checks. The first repository is pre-commit-hooks, with checks for any file. The second is ruff, which runs the linter and then the formatter.
 
-The tool adds `.ruff_cache/` to `.gitignore` and to `.worktreedisposable`. `just uninstall lint` also takes out the git hook that `just hook` installed.
+The tool adds `.ruff_cache/` to `.gitignore` and to `.worktreedisposable`.
+
+The profile does not install pre-commit or a git hook. The tasker role, from agent_gest_git_skills, installs them for every language, with the commit gate. `just check` runs `fmt --check` and `lint`, so the hook needs no ruff of its own. A project from an older profile, which installed pre-commit for `lint`, loses it at the next `just install`. The `before_remove` of `lint` still names pre-commit, so the installer runs `pre-commit uninstall` first, and no commit fails on a hook without its config.
 
 ## test
 
