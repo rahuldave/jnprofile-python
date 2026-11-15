@@ -14,7 +14,7 @@ packages of the tool to a dependency group in `pyproject.toml`, adds its parts t
 | Tool | Packages, in the group | Recipes | Parts in config files | Lines in `.gitignore` and `.worktreedisposable` |
 |---|---|---|---|---|
 | none, always there | none | `setup` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
-| `lint` | ruff, pre-commit, in `lint` | `fmt`, `lint`, `hook` | `ruff.toml`, `.pre-commit-config.yaml` | `.ruff_cache/` |
+| `lint` | ruff, in `lint` | `fmt`, `lint` | `ruff.toml` | `.ruff_cache/` |
 | `test` | pytest, pytest-cov, in `test` | `test`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/` |
 | `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` | none |
 

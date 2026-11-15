@@ -29,7 +29,7 @@ The machine needs `just` and `uv`. `uv` runs Python and the tools. To install Py
 
 | Tool | Packages | Recipes |
 |---|---|---|
-| `lint` | ruff, pre-commit | `just fmt`, `just lint`, `just hook` |
+| `lint` | ruff | `just fmt`, `just lint` |
 | `test` | pytest, pytest-cov | `just test`, `just cov` |
 | `typecheck` | ty | `just typecheck` |
 
@@ -42,7 +42,7 @@ A part is the piece of a shared config file that a tool owns. `just install` add
 - **`ruff.toml` gets an include.** The installer writes the settings of the profile to `.agents/config/python/ruff.toml`, and adds `extend = ".agents/config/python/ruff.toml"` to your `ruff.toml`. A setting in your `ruff.toml` wins over the setting of the profile.
 - **`pyproject.toml` gets the unit `tool.uv.default-groups = "all"`.** So `uv sync` and `uv run` install the dependency groups of every tool.
 - **The `test` tool adds the unit `tool.pytest.ini_options.pythonpath = ["."]` to `pyproject.toml`.** So a test in `tests/` can import a module at the top of the project. If you have a pytest config of your own, such as `pytest.ini`, the installer leaves out the part.
-- **`ty.toml` and `.pre-commit-config.yaml` get units.** Each unit has a comment on the line before it, which names its owner.
+- **`ty.toml` gets units.** Each unit has a comment on the line before it, which names its owner.
 - **`.gitignore` and `.worktreedisposable` get a block of lines.** A block starts and ends with a comment that names its owner.
 
 Do not edit a file under `.agents/config/`. Only the installer writes these files. The section [Shared files and the record](https://rahuldave.github.io/jnterfaces/stack-guide.html#shared-files-and-the-record) of the jnterfaces guide says how the installer keeps a record of each part.
