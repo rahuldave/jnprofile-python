@@ -9,6 +9,37 @@ test *args:
 cov *args:
     just --justfile {{quote(module_file())}} _pytest cov "$@"
 
+# Run only the test files FILES, for test-parent of the commit gates. It exits with 0 when tests ran and passed, with
+# 1 when a test fails or a file cannot be collected, as a new test of new code on the parent commit, and with 5 when
+# no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself
+# failed, or that a test ended the run. With no file, it exits with 5 and runs nothing. The output ends with one line
+# for each test, so a test that passes next to one that fails shows
+[positional-arguments]
+test-paths *files:
+    #!/usr/bin/env sh
+    [ "$#" -eq 0 ] && { echo "just test-paths: no test file"; exit 5; }
+    # A shebang recipe of a module runs in the folder of the module, and the paths start at the project.
+    cd {{quote(justfile_directory())}} || exit 2
+    # uv makes the environment first, so a failed install is a failed runner, not a failed test.
+    uv run true || { echo "just test-paths: uv cannot make the environment of the project"; exit 2; }
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    code=0
+    PYTEST_ADDOPTS= uv run pytest -p no:cacheprovider -o addopts= \
+        -rfEsxXp --continue-on-collection-errors --junitxml="$tmp/report.xml" -- "$@" > "$tmp/out" 2>&1 || code=$?
+    cat "$tmp/out"
+    # The report counts the tests that ran: a skipped or xfail test does not count. uv run true made the environment,
+    # so the count runs with no sync. No report means that the run ended before pytest wrote it.
+    ran=$(uv run --no-sync python -I -c 'import sys, xml.etree.ElementTree as t
+    print(sum(c.find("skipped") is None for c in t.parse(sys.argv[1]).iter("testcase")))' "$tmp/report.xml" 2>/dev/null) || ran=
+    case "$code" in
+        0) [ -z "$ran" ] && exit 2; [ "$ran" -gt 0 ] && exit 0; exit 5 ;;
+        1|5) [ -z "$ran" ] && exit 2; exit "$code" ;;
+        2) grep -Eq 'errors? during collection' "$tmp/out" && exit 1; exit 2 ;;
+        # A conftest.py that imports new code cannot load on the parent, and that is a failure of the test.
+        4) grep -q 'ImportError while loading conftest' "$tmp/out" && exit 1; exit 2 ;;
+        *) exit 2 ;;
+    esac
+
 # pytest for test and cov. test is a step of just check, and jlog logs only the lines of a recipe with no shebang
 # line, so test runs this script in one line, through just. module_file() is the file of this module, and
 # just runs it in the folder of the project, so the line works also when another Justfile loads this project.

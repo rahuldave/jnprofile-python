@@ -13,3 +13,7 @@ docs-build:
 # Build the site in strict mode, then push it to the branch gh-pages
 docs-publish: docs-build
   {{smalldocs}} publish gh-pages docs --no-render
+
+# Run the tests of the recipes of the profile, with real just, uv and pytest
+test:
+  python3 -m unittest discover -s tests -q

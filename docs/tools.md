@@ -39,8 +39,13 @@ The packages are pytest and pytest-cov, in the group `test`.
 |---|---|
 | `just test` | Runs the tests. Extra arguments go to pytest: `just test tests/unit`. With no arguments, a project with no tests yet passes |
 | `just cov` | Runs the tests, and shows the lines that they ran. With no arguments, a project with no tests yet passes |
+| `just python::test-paths FILE...` | Runs only the test files that you name, for `test-parent` of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test |
 
 The tool adds `.pytest_cache/`, `.coverage` and `htmlcov/` to `.gitignore` and to `.worktreedisposable`.
+
+The profile names its files for the commit gates. The code is `**/*.py`. The test files are `tests/**`,
+`**/test_*.py`, `**/*_test.py` and `**/conftest.py`. `test-parent` copies only the test files into the parent commit,
+so no new code reaches it.
 
 The tool also adds the item `"."` to `tool.pytest.ini_options.pythonpath` in `pyproject.toml`. So a test in `tests/` can import a module at the top of the project, such as `app.py`.
 
