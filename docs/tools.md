@@ -105,7 +105,7 @@ The tool has no package. uv runs smalldocs 0.5.5 in the environment of the proje
 | Recipe | What it does |
 |---|---|
 | `just api-check` | Runs `smalldocs api check`. It fails on each function, method or class with no docstring, no type for a parameter or the return, or no docment. It names the module and the function, for example `m:sub(a): no docment`. Then it runs `api-prose-check` |
-| `just api-prose-check` | Checks the API page of each changed module with the checker of nossaifd. A changed module is a module with a change against `HEAD`, or each module on the first commit |
+| `just api-prose-check` | Checks the API page of each changed module with the checker of nossaifd. A changed module is a module with a change against `HEAD`, or each module on the first commit. In CI, or with `--base REF`, it is a module with a change since the base, as for `prose-check`: `just api-prose-check --base main` |
 
 The settings of `api-check`:
 
@@ -120,7 +120,17 @@ smalldocs checks every function, public and private. Its pages show only the pub
 Where the checks run:
 
 - **`api-check`** runs in the step `docs-check` of the docs role of jnterfaces. That step runs the `api-check` of each language that has one. The docments are a check of the docs site, so without the docs role no step of `just check` runs `api-check`. You can still run `just api-check`, and `just verify` runs it.
-- **`api-prose-check`** runs in `api-check`. A step `prose-check` can run it too. It runs once in a run. When it passed before in the same run of `just check`, on the same tree, it says so and does not run again.
+- **`api-prose-check`** runs in `api-check`. The step `prose-check` of nossaifd runs it too. It runs once in a run. When it passed before in the same run of `just check`, on the same tree and with the same base, it says so and does not run again. A call with another base runs again.
+
+The changed modules of `api-prose-check`:
+
+- **On a machine**, without CI and without `--base`, the step does not load `prose_gate.py`. A changed module has a change against `HEAD`, in the index or the working tree, or is a new file.
+- **In CI**, a checkout is clean, so the changes against `HEAD` hold no module. So in CI the step takes the base that `prose-check` of nossaifd takes. On a pull request, the base is the merge base of the base branch and `HEAD`. CI is on when the variable `CI` is set to a value other than empty, `false` and `0`.
+- **With `--base REF`**, the base is the merge base of `REF` and `HEAD`, also outside CI. As in `check-changed` of nossaifd, the last `--base` counts, and `-v` does nothing here.
+- **With a base**, a changed module has a change since the base, in the commits or in the working tree.
+- **The rule of the base** is not in this profile. The step loads `.agents/skills/nossaifd/scripts/prose_gate.py`, which the prose role installs, and calls its `base_commit`. So in CI, both steps compare with the same commit. A failure of `base_commit` fails the step with exit 2.
+- **An error of the base**, as a shallow clone or a base that is not a commit, fails the step with exit 2 and the message of nossaifd. An error of the base never gives a pass.
+- **An older install of nossaifd** has no `base_commit`. Then the step fails with exit 2 in CI or with `--base`, and asks you to run `just install`. Without CI and without `--base`, nothing changes. An install between nossaifd #17 and #18 has `base_commit`. It works, but on the push that makes the default branch, it compares with `HEAD^`, not with the empty tree.
 
 `api-prose-check` writes each page into a temporary folder outside the project. The page is the text that `smalldocs api module NAME` prints. The step makes it with the same function of smalldocs, in one run for all the modules.
 

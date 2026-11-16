@@ -11,13 +11,18 @@ api-check:
     just --justfile {{quote(module_file())}} api-prose-check
 
 # Check the API page of each changed module with the checker of nossaifd. The page goes into a temporary folder,
-# outside the project. Without the prose role, which installs the checker, it passes. When it passed before in this
-# run of just, on this tree, it does not run again, so api-check and prose-check can both call it
-api-prose-check:
-    {{python_run}} {{python_steps}} ran prose || just --justfile {{quote(module_file())}} _api-prose-check
+# outside the project. A changed module changed since HEAD. In CI, or with --base REF, it changed since the base that
+# check-changed of nossaifd takes, in the commits or in the working tree. Without the prose role, which installs the
+# checker, it passes. When it passed before in this run of just, on this tree and with the same base, it does not
+# run again, so api-check and prose-check can both call it
+[positional-arguments]
+api-prose-check *args:
+    {{python_run}} {{python_steps}} ran prose "$@" || just --justfile {{quote(module_file())}} _api-prose-check "$@"
 
-# The run of api-prose-check: the run ID and the tree go into .jnprofile-python, so that it runs once in a run
-_api-prose-check:
-    {{python_run}} {{python_steps}} begin prose
-    {{python_run}} {{python_steps}} api prose
+# The run of api-prose-check: the run ID, the tree and the base go into .jnprofile-python, so that it runs once in a
+# run
+[positional-arguments]
+_api-prose-check *args:
+    {{python_run}} {{python_steps}} begin prose "$@"
+    {{python_run}} {{python_steps}} api prose "$@"
     {{python_run}} {{python_steps}} stamp prose

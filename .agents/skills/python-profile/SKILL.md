@@ -108,7 +108,9 @@ module only, so it runs `just python NAME`.
 
 - **`api-prose-check`** checks the API page of each changed module with the
   checker of nossaifd. Fix a hard problem in the docstring that it comes
-  from. `api-check` runs it, and it runs once in a run of `just check`.
+  from. `api-check` runs it, and it runs once in a run of `just check`. In
+  CI, or with `--base REF`, it checks the modules changed since the base
+  that `prose-check` of nossaifd takes.
 
 ## Rules for agents
 
