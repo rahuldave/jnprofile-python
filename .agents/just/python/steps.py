@@ -535,23 +535,33 @@ def api_settings(folder):
     return folder, f'the packages and modules {", ".join(names)}'
 
 
+# uv runs smalldocs with Python 3.11 or later, which it needs, in an isolated copy of the environment of the project.
+# Without --python, uv can take an older Python that requires-python allows, such as a 3.9 on the machine or in
+# UV_PYTHON. --isolated leaves .venv of the project as it is, with its own Python.
+SMALLDOCS_RUN = ('uv', 'run', '--isolated', '--quiet', '--python', '>=3.11')
+
+
 def smalldocs(*args):
     """The command that runs smalldocs with ARGS in the environment of the project, so that it can import the code."""
-    return ['uv', 'run', '--quiet', '--with', SMALLDOCS, *args]
+    return [*SMALLDOCS_RUN, '--with', SMALLDOCS, *args]
 
 
 def python_ok(asked):
     """The exit code when the Python of the project cannot run smalldocs, which needs 3.11 or later, or None when it
     can. The code is 1 when the project ASKED for the check, with the key api of docs/_smalldocs.yml. Otherwise the
-    check passes with a note, so that a project on an older Python is not stopped by a default tool."""
-    run = subprocess.run(['uv', 'run', '--quiet', 'python', '-c',
-                          'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))'],
-                         capture_output=True, text=True)
-    if not run.returncode:
+    check passes with a note, so that a project on an older Python is not stopped by a default tool. The project
+    can run smalldocs when its requires-python allows a Python 3.11 or later, which uv finds or downloads."""
+    probe = ['python', '-c', 'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))']
+    isolated = subprocess.run([*SMALLDOCS_RUN, *probe], capture_output=True, text=True)
+    if not isolated.returncode:
         return None
+    # The Python of the project, to name it in the note. A project whose own Python is 3.11 or later, but that uv
+    # cannot run in isolation, has another problem, which uv names.
+    run = subprocess.run(['uv', 'run', '--quiet', *probe], capture_output=True, text=True)
     found = run.stdout.strip()
-    if not found:
-        print(f'api-check: uv cannot run the Python of the project: {run.stderr.strip()}', file=sys.stderr)
+    if not found or not run.returncode:
+        print(f'api-check: uv cannot run the project with Python 3.11 or later: {isolated.stderr.strip()}',
+              file=sys.stderr)
         return 1
     note = (f'smalldocs needs Python 3.11 or later, and the project has {found}. Raise requires-python in '
             f'pyproject.toml, or take the tool out with just uninstall api')

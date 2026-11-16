@@ -243,8 +243,10 @@ class ApiTests(ProjectCase):
         self.assertIn("no package at the top of the project or in src/", out)
 
     def test_a_project_on_python_3_9_passes_with_a_note_unless_it_asks_for_the_check(self) -> None:
-        self.write("pyproject.toml", (self.root / "pyproject.toml").read_text().replace(">=3.11", ">=3.9"))
+        # requires-python allows no Python 3.11 or later, so smalldocs cannot run.
+        self.write("pyproject.toml", (self.root / "pyproject.toml").read_text().replace(">=3.11", ">=3.9,<3.11"))
         self.write(".python-version", "3.9\n")
+        subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
         code, out = self.just("python::api-check")
         self.assertEqual(code, 0, out)
         self.assertIn("the API is not checked: smalldocs needs Python 3.11 or later, and the project has 3.9", out)
@@ -253,6 +255,28 @@ class ApiTests(ProjectCase):
         code, out = self.just("python::api-check")
         self.assertEqual(code, 1, out)
         self.assertIn("smalldocs needs Python 3.11 or later, and the project has 3.9", out)
+
+    def test_the_api_steps_take_python_3_11_when_uv_would_take_3_9(self) -> None:
+        # requires-python allows 3.9, and UV_PYTHON and .python-version ask for it. smalldocs needs 3.11, so the
+        # steps take a Python 3.11 or later in an isolated copy of the environment, and the check runs.
+        self.write("pyproject.toml", (self.root / "pyproject.toml").read_text().replace(">=3.11", ">=3.9"))
+        self.write(".python-version", "3.9\n")
+        subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
+        self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
+        self.write("m.py", TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""') + UNTYPED)
+        env = dict(self.env, UV_PYTHON="3.9")
+        code, out = self.just("python::api-check", env=env)
+        self.assertEqual(code, 1, out)
+        self.assertNotIn("the API is not checked", out)
+        self.assertIn("m:sub(a): no docment", out)
+        self.write("m.py", TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""'))
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertEqual(code, 1, out)
+        self.assertIn("m.md: 1 hard", out)
+        # The project keeps its own Python in .venv.
+        version = subprocess.run(["uv", "run", "--quiet", "python", "-c", "import sys; print(sys.version_info[1])"],
+                                 cwd=self.root, env=env, capture_output=True, text=True).stdout.strip()
+        self.assertEqual(version, "9")
 
     def test_the_api_page_of_each_changed_module_goes_to_the_prose_checker(self) -> None:
         self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
