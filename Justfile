@@ -17,3 +17,7 @@ docs-publish: docs-build
 # Run the tests of the recipes of the profile, with real just, uv and pytest
 test:
   python3 -m unittest discover -s tests -q
+
+# The live lab of api_rule.py: install the profile into a new project with the installer of jnterfaces
+live-api-rule:
+  JNPROFILE_LIVE=1 python3 -m unittest discover -s tests -p 'test_live_*.py' -v
