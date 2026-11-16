@@ -74,7 +74,8 @@ class TestPathsTests(unittest.TestCase):
                  (("tests/test_exit1.py",), 2), (("tests/test_exit5.py",), 2))
         for files, code in cases:
             with self.subTest(files=files):
-                self.assertEqual(self.run_paths(root, *files)[0], code)
+                found, out = self.run_paths(root, *files)
+                self.assertEqual(found, code, out)
 
     def test_a_file_that_cannot_be_collected_hides_no_other_test(self) -> None:
         code, out = self.run_paths(self.project(), "tests/test_new.py", "tests/test_pass.py")
