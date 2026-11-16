@@ -571,6 +571,8 @@ def load_gate():
     """The module prose_gate.py of the prose role, from the project, or None when the project does not have it."""
     if not PROSE_GATE.is_file():
         return None
+    # The import would write __pycache__ into the installed skill. The gate sets the flag itself, but too late.
+    sys.dont_write_bytecode = True
     spec = importlib.util.spec_from_file_location('jnprofile_prose_gate', PROSE_GATE.resolve())
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

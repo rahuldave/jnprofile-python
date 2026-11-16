@@ -416,6 +416,13 @@ class ProseBaseTests(ProjectCase):
         self.assertEqual(code, 2, out)
         self.assertIn("api-prose-check: the base origin/nope does not resolve to a commit", out)
 
+    def test_loading_the_gate_writes_no_bytecode_into_the_skill(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", FAKE_GATE)
+        self.commit()
+        env = {name: value for name, value in self.ci().items() if name != "PYTHONDONTWRITEBYTECODE"}
+        self.just("python::api-prose-check", env=env)
+        self.assertEqual(list((self.root / ".agents/skills/nossaifd/scripts").rglob("*.pyc")), [])
+
     def test_v_does_nothing_and_the_last_base_counts(self) -> None:
         self.write(".agents/skills/nossaifd/scripts/prose_gate.py", FAKE_GATE)
         self.commit()
