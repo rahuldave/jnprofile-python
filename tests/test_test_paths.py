@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import unittest
 
+from test_steps import needs
+
 REPO = Path(__file__).resolve().parents[1]
 FOLDER = REPO / ".agents/just/python"
 # The module file as just install writes it, without the shell of jlog. test.just needs the variables of base.just.
@@ -42,7 +44,7 @@ FILES = {
 }
 
 
-@unittest.skipUnless(shutil.which("just") and shutil.which("uv"), "needs just and uv")
+@needs(shutil.which("just") and shutil.which("uv"), "needs just and uv")
 class TestPathsTests(unittest.TestCase):
     def project(self, extra: str = "") -> Path:
         temp = tempfile.TemporaryDirectory()

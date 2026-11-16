@@ -100,7 +100,7 @@ A magic method, such as `__repr__`, and `__init__` do not count. The protocol an
 
 ## api
 
-The tool has no package. uv runs smalldocs 0.5.12 in the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
+The tool has no package. uv runs smalldocs 0.5.12 in a copy of the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later, so uv runs it with Python 3.11 or later, also when `.python-version` or `UV_PYTHON` names an older one. The copy is isolated, so `.venv` of the project keeps its own Python. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
 
 | Recipe | What it does |
 |---|---|
@@ -114,7 +114,7 @@ The settings of `api-check`:
 - **With a list of sections under the key `api`**, `api-prose-check` fails with exit 2. It reads only one section of Python settings.
 - **With no package and no such module**, the step passes.
 - **When an import fails**, smalldocs exits with 2, and the step says so. Name the packages in the key `api` of `docs/_smalldocs.yml`.
-- **With Python 3.10 or older in the project**, smalldocs cannot run. Then the step passes with a note. With a key `api` in `docs/_smalldocs.yml`, the project asks for the check, so the step fails.
+- **When `requires-python` of the project allows no Python 3.11 or later**, smalldocs cannot run. Then the step passes with a note. With a key `api` in `docs/_smalldocs.yml`, the project asks for the check, so the step fails.
 
 smalldocs checks every function, public and private. Its pages show only the public ones.
 

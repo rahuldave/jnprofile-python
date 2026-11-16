@@ -1,8 +1,10 @@
 """The live lab of api_rule.py: install the profile into a new project, commit, change only a docstring, and ask
 is_api of the parent commit about the file, as the commit gate does.
 
-It runs the installer of jnterfaces, so it is slow and it runs only with JNPROFILE_LIVE=1: just live-api-rule.
-JNTERFACES_INSTALLER names the installer, by default ~/Projects/jnterfaces/scripts/install_stack.py.
+It runs the installer of jnterfaces, in just test and alone in just live-api-rule. JNTERFACES_INSTALLER names the
+installer, by default ~/Projects/jnterfaces/scripts/install_stack.py. The installer takes the other packages from the
+folder SKILL_PACKAGES_DIR, else from the folder of its clone of jnterfaces. Without the installer, the lab fails, so
+just test never passes without it.
 """
 import json
 import os
@@ -14,10 +16,10 @@ import unittest
 
 REPO = Path(__file__).resolve().parent.parent
 INSTALLER = Path(os.environ.get("JNTERFACES_INSTALLER", Path.home() / "Projects/jnterfaces/scripts/install_stack.py"))
-LIVE = os.environ.get("JNPROFILE_LIVE") == "1" and INSTALLER.is_file() and shutil.which("uv") and shutil.which("git")
 # The variables of a session of an agent, which the installer reads, and which a lab leaves out.
 AGENT = ("CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID")
-CODE = '"""The package m."""\n\n\ndef add(\n    a: int,  # The first number\n) -> int:  # A\n    """Give A back."""\n    return a\n'
+CODE = ('"""The package m."""\n\n\ndef add(\n    a: int,  # The first number\n) -> int:  # A\n'
+        '    """Give A back."""\n    return a\n')
 # The gate loads the rule from the parent commit and runs it with python -I -B, in the top of the repository.
 ASK = ("import importlib.util, json, subprocess, sys, tempfile, os\n"
        "text = subprocess.run(['git', 'show', 'HEAD:.agents/just/python/api_rule.py'], capture_output=True,\n"
@@ -28,8 +30,13 @@ ASK = ("import importlib.util, json, subprocess, sys, tempfile, os\n"
        "print(json.dumps({name: rule.is_api(name) for name in sys.argv[1:]}))\n")
 
 
-@unittest.skipUnless(LIVE, "the live lab: JNPROFILE_LIVE=1, uv, git and the installer of jnterfaces")
 class LiveApiRuleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        for tool in ("uv", "git", "just", "jlog"):
+            self.assertTrue(shutil.which(tool), f"the live lab needs {tool}")
+        self.assertTrue(INSTALLER.is_file(), f"the live lab needs the installer of jnterfaces at {INSTALLER}. Set "
+                                             f"JNTERFACES_INSTALLER")
+
     def run_in(self, root: Path, *command: str) -> subprocess.CompletedProcess:
         env = {k: v for k, v in os.environ.items() if k not in AGENT and not k.startswith("GIT_")}
         env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="t",
@@ -43,11 +50,14 @@ class LiveApiRuleTests(unittest.TestCase):
             self.run_in(root, "uv", "init", "-q", "--lib", "--name", "m", "--python", "3.12", ".")
             (root / "src/m/__init__.py").write_text(CODE)
             installed = self.run_in(root, "uv", "run", "--script", str(INSTALLER), "--target", ".", "--defaults",
-                                    "--profile", "python", "--clone", f"jnprofile-python={REPO}", "docs")
+                                    "--profile", "python", "--clone", f"jnprofile-python={REPO}", "docs",
+                                    "--without", "tasker")
             self.assertEqual(installed.returncode, 0, installed.stdout + installed.stderr)
             record = json.loads((root / ".agents/stack.json").read_text())
             self.assertIn("python:api", record["tools"])
             self.assertTrue(record["choices"]["docs"])
+            # The tasker needs the program gest, which CI does not have, so the lab installs none.
+            self.assertFalse(record["choices"]["tasker"])
             self.assertTrue((root / ".agents/just/python/api_rule.py").is_file())
             generated = root / ".agents/generated.txt"
             self.assertNotIn("api_rule", generated.read_text() if generated.is_file() else "")

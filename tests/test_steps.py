@@ -1,5 +1,6 @@
 """Run the steps fmt-check, coverage-check and docstring-check with real just, uv, git and pytest."""
 
+import functools
 import importlib.util
 import json
 import os
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 
 REPO = Path(__file__).resolve().parents[1]
 FOLDER = REPO / ".agents/just/python"
@@ -42,6 +44,46 @@ def load_steps():
     return module
 
 
+def load_lint():
+    """The module scripts/lint_recipes.py of this repository."""
+    spec = importlib.util.spec_from_file_location("lint_recipes", REPO / "scripts/lint_recipes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The variables of CI that the steps read.
+CI_VARIABLES = ("CI", "GITHUB_BASE_REF", "GITHUB_REF", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH")
+
+
+def in_ci() -> bool:
+    """True in CI: the variable CI is set to a value other than empty, false and 0."""
+    return os.environ.get("CI", "").lower() not in ("", "false", "0")
+
+
+def needs(condition, reason: str):
+    """unittest.skipUnless, except in CI. There a test or a class whose program or clone is missing fails, so a
+    missing program cannot pass the run."""
+    if condition:
+        return lambda item: item
+    if not in_ci():
+        return unittest.skip(reason)
+    message = f"CI must have it: {reason}"
+
+    def mark(item):
+        if isinstance(item, type):
+            def setUpClass(cls) -> None:
+                raise AssertionError(message)
+            item.setUpClass = classmethod(setUpClass)
+            return item
+
+        @functools.wraps(item)
+        def failing(self, *args, **kwargs) -> None:
+            self.fail(message)
+        return failing
+    return mark
+
+
 TOOLS = shutil.which("just") and shutil.which("uv") and shutil.which("git")
 
 
@@ -60,7 +102,9 @@ class ProjectCase(unittest.TestCase):
         self.write(".gitignore", IGNORE)
         self.write("m.py", CODE)
         self.write("tests/test_m.py", TEST)
-        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "JLOG_RUN"}
+        # The variables of CI go too, so that the steps run as on a machine also in CI. A test of CI sets them.
+        self.env = {k: v for k, v in os.environ.items()
+                    if not k.startswith("GIT_") and k != "JLOG_RUN" and k not in CI_VARIABLES}
         self.env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="t",
                         GIT_COMMITTER_EMAIL="t@example.com")
         self.git("init", "-q")
@@ -84,7 +128,22 @@ class ProjectCase(unittest.TestCase):
         return run.returncode, run.stdout + run.stderr
 
 
-@unittest.skipUnless(TOOLS, "needs just, uv and git")
+@needs(TOOLS, "needs just, uv and git")
+class CiVariablesTests(ProjectCase):
+    """The projects of the tests run as on a machine, also in CI, which sets CI=true."""
+
+    def setUp(self) -> None:
+        patch = unittest.mock.patch.dict(os.environ, {"CI": "true", "GITHUB_EVENT_NAME": "push",
+                                                      "GITHUB_REF": "refs/heads/x"})
+        patch.start()
+        self.addCleanup(patch.stop)
+        super().setUp()
+
+    def test_the_env_of_a_project_has_no_variable_of_ci(self) -> None:
+        self.assertFalse(set(CI_VARIABLES) & set(self.env))
+
+
+@needs(TOOLS, "needs just, uv and git")
 class StepTests(ProjectCase):
     def test_an_untested_changed_line_fails_and_a_pragma_makes_it_pass(self) -> None:
         self.commit()
@@ -113,14 +172,16 @@ class StepTests(ProjectCase):
             shutil.move(str(self.root / name), str(sub / name))
         self.root = sub
         self.commit()
-        self.write("n.py", '"""N."""\n\n\ndef f():\n    """F."""\n    return 1\n\n\ndef g():\n    """G."""\n    return 2\n')
+        self.write("n.py", '"""N."""\n\n\ndef f():\n    """F."""\n    return 1\n\n\n'
+                   'def g():\n    """G."""\n    return 2\n')
         self.write("tests/test_n.py", "from n import f\n\n\ndef test_f():\n    assert f() == 1\n")
         code, out = self.just("python::coverage-check")
         self.assertEqual(code, 1, out)
         self.assertIn("n.py:11: no test runs this line", out)
 
     def test_a_cov_append_of_the_project_adds_to_no_old_run(self) -> None:
-        self.write("pyproject.toml", PYPROJECT.replace('pythonpath = ["."]', 'pythonpath = ["."]\naddopts = "--cov-append"'))
+        self.write("pyproject.toml",
+                   PYPROJECT.replace('pythonpath = ["."]', 'pythonpath = ["."]\naddopts = "--cov-append"'))
         subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
         self.commit()
         self.write("m.py", CODE + UNTESTED)
@@ -200,7 +261,8 @@ class StepTests(ProjectCase):
         self.write("o.py", '"""O."""\nfrom typing import overload\n\n\n@overload\ndef f(x: int) -> int: ...\n\n\n'
                    '@overload\ndef f(x: str) -> str: ...\n\n\ndef f(x):\n    """F."""\n    return x\n\n\nclass P:\n'
                    '    """P."""\n\n    @property\n    def v(self):\n        """V."""\n        return 1\n\n'
-                   '    @v.setter\n    def v(self, value):\n        pass\n\n    @v.deleter\n    def v(self):\n        pass\n')
+                   '    @v.setter\n    def v(self, value):\n        pass\n\n    @v.deleter\n    def v(self):\n'
+                   '        pass\n')
         code, out = self.just("python::docstring-check")
         self.assertEqual(code, 1, out)
         self.assertIn("m.py:9: FunctionDef _helper has no docstring", out)
@@ -252,24 +314,58 @@ class ProfileTests(unittest.TestCase):
                      if line and line[0].isalpha() and ":" in line and ":=" not in line}
             self.assertFalse(names & {"docs-check", "prose-check"}, path.name)
 
-    @unittest.skipUnless(shutil.which("just"), "needs just")
-    def test_no_step_is_a_shebang_recipe(self) -> None:
-        steps = ("fmt-check", "lint", "typecheck", "test", "integration", "coverage-check", "docstring-check",
-                 "docs-check", "prose-check", "diff-check")
+    def test_a_missing_program_skips_on_a_machine_and_fails_in_ci(self) -> None:
+        def run(decorated) -> unittest.TestResult:
+            result = unittest.TestResult()
+            unittest.defaultTestLoader.loadTestsFromTestCase(decorated).run(result)
+            return result
+
+        def case():
+            class Case(unittest.TestCase):
+                def test_it(self) -> None:
+                    pass
+            return Case
+
+        for value, skipped in (("", True), ("false", True), ("0", True), ("true", False), ("1", False)):
+            with unittest.mock.patch.dict(os.environ, {"CI": value}):
+                # needs on a class, and on a method.
+                method = case()
+                method.test_it = needs(False, "no tool")(method.test_it)
+                for result in (run(needs(False, "no tool")(case())), run(method)):
+                    self.assertEqual(len(result.skipped), 1 if skipped else 0, value)
+                    self.assertEqual(len(result.failures) + len(result.errors), 0 if skipped else 1, value)
+                    if not skipped:
+                        self.assertIn("CI must have it: no tool", str(result.failures + result.errors))
+                self.assertEqual(run(needs(True, "no tool")(case())).testsRun, 1)
+
+    @needs(shutil.which("just"), "needs just")
+    def test_the_lint_of_the_recipes_passes_and_finds_each_kind_of_bad_step(self) -> None:
+        lint = load_lint()
+        self.assertEqual(lint.main([]), 0)
+        recipes, error = lint.dump(FOLDER)
+        self.assertIsNone(error)
+        self.assertTrue({"test", "coverage-check", "integration", "docstring-check", "api-check"} <= set(recipes))
+        bad = {"test": "#!/usr/bin/env sh\n    echo t", "lint": "-echo l", "typecheck": "@-echo t"}
         with tempfile.TemporaryDirectory() as temp:
-            shutil.copytree(FOLDER, Path(temp) / "python")
-            imports = "".join(f"import '{path.relative_to(FOLDER.parent)}'\n" for path in sorted(FOLDER.glob("*.just")))
-            (Path(temp) / "python.just").write_text("set positional-arguments\n" + imports)
-            dump = json.loads(subprocess.run(["just", "--justfile", str(Path(temp) / "python.just"), "--dump",
-                                              "--dump-format", "json"], check=True, capture_output=True,
-                                             text=True).stdout)
-        recipes = dump["recipes"]
-        self.assertTrue({"test", "coverage-check", "integration", "docstring-check"} <= set(recipes))
-        for name in steps:
-            if name in recipes:
-                self.assertFalse(recipes[name]["shebang"], name)
-                self.assertFalse(any(line and isinstance(line[0], str) and line[0].lstrip("@").startswith("-")
-                                     for line in recipes[name]["body"]), name)
+            folder = Path(temp) / "python"
+            folder.mkdir()
+            text = "".join(f"{name}:\n    {body}\n\n" for name, body in bad.items())
+            text += "[no-cd]\ndiff-check:\n    echo d\n\n[script]\nfmt-check:\n    echo f\n\n"
+            text += "[working-directory: 'x']\nintegration:\n    echo i\n\n"
+            # A step that is an alias gets the lint of the recipe that it names.
+            text += "_check:\n    -echo c\n\nalias docstring-check := _check\n"
+            (folder / "bad.just").write_text(text)
+            recipes, error = lint.dump(folder)
+            self.assertIsNone(error)
+            found = "\n".join(lint.findings(recipes))
+            for expected in ("test: a step is a shebang recipe", "lint: a line starts with -",
+                             "typecheck: a line starts with -", "diff-check: a step has the attribute [no-cd]",
+                             "fmt-check: a step has the attribute [script]",
+                             "integration: a step has the attribute [working-directory]",
+                             "docstring-check: a line starts with -"):
+                self.assertIn(expected, found)
+            (folder / "two.just").write_text("lint:\n    echo again\n")
+            self.assertEqual(lint.main([str(folder)]), 1)
 
     def test_the_messages_of_the_prose_run_name_api_prose_check(self) -> None:
         steps = load_steps()

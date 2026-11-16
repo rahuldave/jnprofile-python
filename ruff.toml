@@ -1,0 +1,6 @@
+# The ruff settings of this repository, for just lint. They are those of files/ruff.toml, which the profile installs
+# in projects, but they check .agents too, because .agents/just/python holds the code of this profile.
+line-length = 120
+
+[lint]
+select = ["E", "W", "F"]

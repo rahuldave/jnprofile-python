@@ -1,13 +1,12 @@
 """The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
 The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
-begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose. begin, stamp and
-fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root Justfile and to the
-worktree tree. So coverage-check reads the reports of test and integration only from the same run, and a check that
-two steps need runs once in a run. It needs Python 3.9 or later. The step
-coverage-check also needs diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment
-of the project, with interrogate, so that it parses the code with the Python of the project. pages runs there too,
-with smalldocs.
+begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose.
+begin, stamp and fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root
+Justfile and to the worktree tree. So coverage-check reads the reports of test and integration only from the same run,
+and a check that two steps need runs once in a run. It needs Python 3.9 or later. The step coverage-check also needs
+diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment of the project, with
+interrogate, so that it parses the code with the Python of the project. pages runs there too, with smalldocs.
 
 The lists .agents/generated.txt and .agents/coverage-exclude.txt come from the parent commit, through
 git show HEAD:./PATH, so a commit cannot exempt its own code. With no parent, both lists are empty. git matches
@@ -113,7 +112,8 @@ def changed_code():
     """
     tracked = git('diff', '-z', '--name-only', '--relative', '--diff-filter=d', 'HEAD', '--', '*.py')
     untracked = git('ls-files', '-z', '--others', '--exclude-standard', '--', '*.py')
-    names = lambda run: sorted(set(filter(None, run.stdout.split('\0'))))
+    def names(run):
+        return sorted(set(filter(None, run.stdout.split('\0'))))
     return names(tracked), names(untracked)
 
 
@@ -487,7 +487,8 @@ def project_name():
             data = tomllib.loads(text)
         except ValueError:
             return None
-        table = lambda value: value if isinstance(value, dict) else {}
+        def table(value):
+            return value if isinstance(value, dict) else {}
         name = table(data.get('project')).get('name') or table(table(data.get('tool')).get('poetry')).get('name')
     return re.sub(r'[-.]+', '_', name).lower() if isinstance(name, str) and name else None
 
@@ -534,23 +535,33 @@ def api_settings(folder):
     return folder, f'the packages and modules {", ".join(names)}'
 
 
+# uv runs smalldocs with Python 3.11 or later, which it needs, in an isolated copy of the environment of the project.
+# Without --python, uv can take an older Python that requires-python allows, such as a 3.9 on the machine or in
+# UV_PYTHON. --isolated leaves .venv of the project as it is, with its own Python.
+SMALLDOCS_RUN = ('uv', 'run', '--isolated', '--quiet', '--python', '>=3.11')
+
+
 def smalldocs(*args):
     """The command that runs smalldocs with ARGS in the environment of the project, so that it can import the code."""
-    return ['uv', 'run', '--quiet', '--with', SMALLDOCS, *args]
+    return [*SMALLDOCS_RUN, '--with', SMALLDOCS, *args]
 
 
 def python_ok(asked):
     """The exit code when the Python of the project cannot run smalldocs, which needs 3.11 or later, or None when it
     can. The code is 1 when the project ASKED for the check, with the key api of docs/_smalldocs.yml. Otherwise the
-    check passes with a note, so that a project on an older Python is not stopped by a default tool."""
-    run = subprocess.run(['uv', 'run', '--quiet', 'python', '-c',
-                          'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))'],
-                         capture_output=True, text=True)
-    if not run.returncode:
+    check passes with a note, so that a project on an older Python is not stopped by a default tool. The project
+    can run smalldocs when its requires-python allows a Python 3.11 or later, which uv finds or downloads."""
+    probe = ['python', '-c', 'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))']
+    isolated = subprocess.run([*SMALLDOCS_RUN, *probe], capture_output=True, text=True)
+    if not isolated.returncode:
         return None
+    # The Python of the project, to name it in the note. A project whose own Python is 3.11 or later, but that uv
+    # cannot run in isolation, has another problem, which uv names.
+    run = subprocess.run(['uv', 'run', '--quiet', *probe], capture_output=True, text=True)
     found = run.stdout.strip()
-    if not found:
-        print(f'api-check: uv cannot run the Python of the project: {run.stderr.strip()}', file=sys.stderr)
+    if not found or not run.returncode:
+        print(f'api-check: uv cannot run the project with Python 3.11 or later: {isolated.stderr.strip()}',
+              file=sys.stderr)
         return 1
     note = (f'smalldocs needs Python 3.11 or later, and the project has {found}. Raise requires-python in '
             f'pyproject.toml, or take the tool out with just uninstall api')
@@ -633,8 +644,8 @@ def api(action, option=None):
     check the API page of each changed module with the checker of nossaifd. A changed module changed since HEAD, or
     since the base of prose_base, from OPTION, the value of --base, or from CI. Returns the exit code."""
     if action == 'prose' and not PROSE_CHECKER.is_file():
-        print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The prose '
-              f'role installs it')
+        print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The '
+              f'prose role installs it')
         return 0
     base = about_base = None
     if action == 'prose':

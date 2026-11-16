@@ -100,7 +100,8 @@ def api_on():
     data = json.loads(read(STACK) or '{}')
     tools = data.get('tools') or []
     choices = data.get('choices') or {}
-    return isinstance(tools, list) and 'python:api' in tools and isinstance(choices, dict) and choices.get('docs') is True
+    return (isinstance(tools, list) and 'python:api' in tools and isinstance(choices, dict)
+            and choices.get('docs') is True)
 
 
 def glob_regex(pattern):
@@ -274,7 +275,8 @@ def project_name():
         return re.sub(r'[-.]+', '_', name).lower() if isinstance(name, str) and name else None
     # Python 3.10 or older has no tomllib, so a regular expression reads the table instead.
     for header in (r'project', r'tool\.poetry'):
-        table = re.search(r'^\s*\[' + header + r'\][ \t]*(?:#[^\n]*)?$(.*?)(?=^\s*\[|\Z)', text, re.MULTILINE | re.DOTALL)
+        table = re.search(r'^\s*\[' + header + r'\][ \t]*(?:#[^\n]*)?$(.*?)(?=^\s*\[|\Z)', text,
+                          re.MULTILINE | re.DOTALL)
         found = table and re.search(r'^\s*name\s*=\s*["\']([^"\']+)["\']', table.group(1), re.MULTILINE)
         if found:
             return re.sub(r'[-.]+', '_', found.group(1)).lower()
