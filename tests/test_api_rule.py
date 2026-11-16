@@ -8,11 +8,12 @@ import subprocess
 import tempfile
 import unittest
 
-from test_steps import load_steps
+from test_steps import load_steps, needs
 
 RULE = Path(__file__).resolve().parent.parent / ".agents/just/python/api_rule.py"
 # A Python 3.9 on this machine, to run the rule as the gate may run it.
-PYTHON39 = shutil.which("python3.9")
+# uv gets Python 3.9 when the machine does not have it.
+PYTHON39 = ["uv", "run", "--no-project", "--quiet", "--python", "3.9", "python"] if shutil.which("uv") else None
 ON = {"tools": ["python:lint", "python:api"], "choices": {"docs": True, "prose": True}}
 
 
@@ -29,13 +30,13 @@ class ApiRuleTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
-    def is_api(self, *paths: str, python: str = "python3") -> list:
+    def is_api(self, *paths: str, python: tuple = ("python3",)) -> list:
         """is_api of each of PATHS, run as the gate runs it: python -I -B, in the top of the repository."""
         code = ("import importlib.util, json, sys\n"
                 "spec = importlib.util.spec_from_file_location('api_rule', sys.argv[1])\n"
                 "rule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(rule)\n"
                 "print(json.dumps([rule.is_api(p) for p in sys.argv[2:]]))\n")
-        run = subprocess.run([python, "-I", "-B", "-c", code, str(RULE), *paths], cwd=self.root,
+        run = subprocess.run([*python, "-I", "-B", "-c", code, str(RULE), *paths], cwd=self.root,
                              capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
         return json.loads(run.stdout)
@@ -94,13 +95,14 @@ class ApiRuleTests(unittest.TestCase):
             self.write("pyproject.toml", text)
             self.assertEqual(self.is_api("my_app.py"), [True], text)
             # Python 3.10 or older has no tomllib. Its regular expression does not read a dotted key.
-            if PYTHON39 and not text.startswith("project.name"):
+            if not text.startswith("project.name"):
                 self.assertEqual(self.is_api("my_app.py", python=PYTHON39), [True], text)
 
     def test_the_packages_and_the_check_globs_of_the_key_api(self) -> None:
         self.write("src/pkg/sub/__init__.py")
         self.write("one.py")
-        self.write("docs/_smalldocs.yml", "project:\n  type: website\napi:\n  packages: [pkg.sub, one]  # the packages\n"
+        self.write("docs/_smalldocs.yml", "project:\n  type: website\napi:\n"
+                                          "  packages: [pkg.sub, one]  # the packages\n"
                                           "  root: ..\n  check:\n    - 'scripts/*.py'\n    - \"**/tool_*.py\"\n")
         accepted = ["src/pkg/sub/x.py", "src/pkg/sub/deep/y.py", "one.py", "scripts/run.py", "a/b/tool_x.py",
                     "tool_y.py"]
@@ -186,13 +188,13 @@ class ApiRuleTests(unittest.TestCase):
         names |= {node.module.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
         self.assertEqual(names, {"json", "os", "re", "tomllib"})
 
-    @unittest.skipUnless(PYTHON39, "needs python3.9")
+    @needs(PYTHON39, "needs uv, for Python 3.9")
     def test_it_runs_on_python_3_9(self) -> None:
         self.write("pkg/__init__.py")
         self.write("docs/_smalldocs.yml", "api:\n  packages: [pkg]\n")
         self.assertEqual(self.is_api("pkg/x.py", "x.py", python=PYTHON39), [True, False])
 
-    @unittest.skipUnless(shutil.which("git"), "needs git")
+    @needs(shutil.which("git"), "needs git")
     def test_without_the_key_api_it_finds_the_packages_that_api_check_finds(self) -> None:
         files = ["pkg/__init__.py", "pkg/core.py", "src/lib/__init__.py", "src/lib/x.py", "my_app.py", "src/my_app.py",
                  "noxfile.py", "loose/x.py", "_private/__init__.py", "pkg/test_core.py", "tests/test_m.py",

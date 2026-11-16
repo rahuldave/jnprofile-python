@@ -1,13 +1,12 @@
 """The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
 The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
-begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose. begin, stamp and
-fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root Justfile and to the
-worktree tree. So coverage-check reads the reports of test and integration only from the same run, and a check that
-two steps need runs once in a run. It needs Python 3.9 or later. The step
-coverage-check also needs diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment
-of the project, with interrogate, so that it parses the code with the Python of the project. pages runs there too,
-with smalldocs.
+begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose.
+begin, stamp and fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root
+Justfile and to the worktree tree. So coverage-check reads the reports of test and integration only from the same run,
+and a check that two steps need runs once in a run. It needs Python 3.9 or later. The step coverage-check also needs
+diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment of the project, with
+interrogate, so that it parses the code with the Python of the project. pages runs there too, with smalldocs.
 
 The lists .agents/generated.txt and .agents/coverage-exclude.txt come from the parent commit, through
 git show HEAD:./PATH, so a commit cannot exempt its own code. With no parent, both lists are empty. git matches
@@ -113,7 +112,8 @@ def changed_code():
     """
     tracked = git('diff', '-z', '--name-only', '--relative', '--diff-filter=d', 'HEAD', '--', '*.py')
     untracked = git('ls-files', '-z', '--others', '--exclude-standard', '--', '*.py')
-    names = lambda run: sorted(set(filter(None, run.stdout.split('\0'))))
+    def names(run):
+        return sorted(set(filter(None, run.stdout.split('\0'))))
     return names(tracked), names(untracked)
 
 
@@ -487,7 +487,8 @@ def project_name():
             data = tomllib.loads(text)
         except ValueError:
             return None
-        table = lambda value: value if isinstance(value, dict) else {}
+        def table(value):
+            return value if isinstance(value, dict) else {}
         name = table(data.get('project')).get('name') or table(table(data.get('tool')).get('poetry')).get('name')
     return re.sub(r'[-.]+', '_', name).lower() if isinstance(name, str) and name else None
 
@@ -633,8 +634,8 @@ def api(action, option=None):
     check the API page of each changed module with the checker of nossaifd. A changed module changed since HEAD, or
     since the base of prose_base, from OPTION, the value of --base, or from CI. Returns the exit code."""
     if action == 'prose' and not PROSE_CHECKER.is_file():
-        print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The prose '
-              f'role installs it')
+        print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The '
+              f'prose role installs it')
         return 0
     base = about_base = None
     if action == 'prose':

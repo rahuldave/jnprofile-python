@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import unittest
 
-from test_steps import CODE, MODULE, TEST, TOOLS, ProjectCase
+from test_steps import CODE, MODULE, TEST, TOOLS, ProjectCase, needs
 
 # The module with the integration and api tools too.
 FULL = MODULE + "import? 'python/integration.just'\nimport? 'python/api.just'\n"
@@ -25,7 +25,8 @@ UNTYPED = '\n\ndef sub(a, b):\n    """Subtract B from A."""\n    return a - b\n'
 # A stand-in for the checker of nossaifd: a page with the word "basically" has a hard problem.
 CHECKER = ('import sys\nfrom pathlib import Path\nbad = False\nfor name in sys.argv[1:]:\n'
            '    hard = "basically" in Path(name).read_text()\n'
-           '    print(f"{Path(name).name}: {int(hard)} hard, 0 soft")\n    bad = bad or hard\nsys.exit(1 if bad else 0)\n')
+           '    print(f"{Path(name).name}: {int(hard)} hard, 0 soft")\n    bad = bad or hard\n'
+           'sys.exit(1 if bad else 0)\n')
 
 # A stand-in that, like the checker of nossaifd, reads no front matter and no quoted string. So a page that puts the
 # first paragraph of the docstring of a module only in its front matter, as description: "...", passes it.
@@ -34,17 +35,20 @@ BLIND_CHECKER = ('import re, sys\nfrom pathlib import Path\nbad = False\nfor nam
                  '    hard = "basically" in re.sub(r\'"[^"]*"\', "QUOTE", text)\n'
                  '    print(f"{Path(name).name}: {int(hard)} hard, 0 soft")\n    bad = bad or hard\n'
                  'sys.exit(1 if bad else 0)\n')
-# The checker of nossaifd on this machine, for a check with the real rules.
-REAL_CHECKER = Path.home() / "Projects/nossaifd/.agents/skills/nossaifd/scripts/check.py"
+# The clone of nossaifd: the folder of NOSSAIFD_CHECK, its check.py, as in the recipe prose-check.
+NOSSAIFD = Path(os.environ.get("NOSSAIFD_CHECK", Path.home() / "Projects/nossaifd/check.py")).parent
+# The checker of nossaifd in its clone, for a check with the real rules.
+REAL_CHECKER = NOSSAIFD / ".agents/skills/nossaifd/scripts/check.py"
 
 
-@unittest.skipUnless(TOOLS, "needs just, uv and git")
+@needs(TOOLS, "needs just, uv and git")
 class IntegrationTests(ProjectCase):
     def setUp(self) -> None:
         super().setUp()
         self.write(".agents/just/python.just", FULL)
         self.write("m.py", CODE + UNTYPED)
-        self.write("tests/integration/test_flow.py", "from m import sub\n\n\ndef test_sub():\n    assert sub(3, 1) == 2\n")
+        self.write("tests/integration/test_flow.py",
+                   "from m import sub\n\n\ndef test_sub():\n    assert sub(3, 1) == 2\n")
 
     def steps(self, names: list) -> None:
         self.write(".agents/stack.json", json.dumps({"steps": names}) + "\n")
@@ -126,7 +130,7 @@ class IntegrationTests(ProjectCase):
         self.assertNotEqual(code, 0, out)
 
 
-@unittest.skipUnless(TOOLS, "needs just, uv and git")
+@needs(TOOLS, "needs just, uv and git")
 class ApiTests(ProjectCase):
     def setUp(self) -> None:
         super().setUp()
@@ -261,7 +265,8 @@ class ApiTests(ProjectCase):
         self.assertIn("the API pages of m", out)
         self.assertIn("m.md: 0 hard", out)
         self.assertNotIn("n.md", out)
-        # A change to the package n checks its page, and the hard problem fails the check. The pages go to no file of the project.
+        # A change to the package n checks its page, and the hard problem fails the check. The pages go to no file
+        # of the project.
         self.write("n/__init__.py", (self.root / "n/__init__.py").read_text() + "\n")
         before = self.status()
         code, out = self.just("python::api-prose-check")
@@ -286,7 +291,7 @@ class ApiTests(ProjectCase):
         self.assertEqual(code, 1, out)
         self.assertIn("m.md: 1 hard", out)
 
-    @unittest.skipUnless(REAL_CHECKER.is_file(), "needs check.py of nossaifd")
+    @needs(REAL_CHECKER.is_file(), "needs check.py of nossaifd: set NOSSAIFD_CHECK")
     def test_the_checker_of_nossaifd_finds_a_contraction_in_a_module_docstring(self) -> None:
         self.write(".agents/skills/nossaifd/scripts/check.py", REAL_CHECKER.read_text())
         self.write("m.py", TYPED.replace('"""Math."""', '"""Helpers that don\'t add."""'))
@@ -305,8 +310,9 @@ class ApiTests(ProjectCase):
                               capture_output=True, text=True).stdout
 
 
-# prose_gate.py of nossaifd, whose base_commit gives the base. JNPROFILE_PROSE_GATE names another copy; NOSSAIFD_GATE is the on-off switch of nossaifd.
-GATE = Path(os.environ.get("JNPROFILE_PROSE_GATE", Path.home() / "Projects/nossaifd/.agents/skills/nossaifd/scripts/prose_gate.py"))
+# prose_gate.py of nossaifd, whose base_commit gives the base. JNPROFILE_PROSE_GATE names another copy;
+# NOSSAIFD_GATE is the on-off switch of nossaifd. By default, the copy is in the clone of nossaifd of NOSSAIFD_CHECK.
+GATE = Path(os.environ.get("JNPROFILE_PROSE_GATE", NOSSAIFD / ".agents/skills/nossaifd/scripts/prose_gate.py"))
 HAS_GATE = GATE.is_file() and "def base_commit(" in GATE.read_text()
 # A prose_gate.py from before nossaifd #17, with no base_commit.
 OLD_GATE = "def ci_set():\n    return True\n"
@@ -331,18 +337,14 @@ WRONG_GATE = "def ci_set():\n    return True\n\n\ndef base_commit(root):\n    re
 # A prose_gate.py that fails on import.
 BROKEN_GATE = "raise RuntimeError('broken')\n"
 BAD = TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""')
-# The variables of CI that the steps read. The tests set them, so the CI of a machine does not change them.
-CI_VARIABLES = ("CI", "GITHUB_BASE_REF", "GITHUB_REF", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH")
 
 
-@unittest.skipUnless(TOOLS, "needs just, uv and git")
+@needs(TOOLS, "needs just, uv and git")
 class ProseBaseTests(ProjectCase):
     """api-prose-check takes the base of check-changed of nossaifd: in CI, or with --base REF."""
 
     def setUp(self) -> None:
         super().setUp()
-        for name in CI_VARIABLES:
-            self.env.pop(name, None)
         self.write(".agents/just/python.just", FULL)
         self.write("Justfile", ROOT)
         text = (self.root / "pyproject.toml").read_text()
@@ -365,7 +367,7 @@ class ProseBaseTests(ProjectCase):
         """The environment of a pull request on GitHub into main."""
         return {**self.env, "CI": "true", "GITHUB_BASE_REF": "main", "GITHUB_EVENT_NAME": "pull_request", **more}
 
-    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    @needs(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit: set NOSSAIFD_CHECK")
     def test_in_ci_a_bad_docstring_of_a_module_changed_since_the_merge_base_fails(self) -> None:
         # The checkout is clean, so the changes since HEAD hold no module.
         code, out = self.just("python::api-prose-check")
@@ -377,7 +379,7 @@ class ProseBaseTests(ProjectCase):
         self.assertIn("n.md: 1 hard", out)
         self.assertNotIn("m.md", out)
 
-    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    @needs(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit: set NOSSAIFD_CHECK")
     def test_with_base_a_bad_docstring_since_the_base_fails(self) -> None:
         for args in (["--base", "main"], ["--base=main"]):
             code, out = self.just("python::api-prose-check", *args)
@@ -388,7 +390,7 @@ class ProseBaseTests(ProjectCase):
         code, out = self.just("python::api-prose-check", "--base", "main")
         self.assertIn("m.md: 1 hard", out)
 
-    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    @needs(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit: set NOSSAIFD_CHECK")
     def test_a_base_that_does_not_resolve_fails_with_2(self) -> None:
         code, out = self.just("python::api-prose-check", env=self.ci(GITHUB_BASE_REF="nope"))
         self.assertEqual(code, 2, out)
@@ -397,7 +399,7 @@ class ProseBaseTests(ProjectCase):
         self.assertEqual(code, 2, out)
         self.assertIn("api-prose-check: the base nope does not resolve to a commit", out)
 
-    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    @needs(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit: set NOSSAIFD_CHECK")
     def test_a_run_with_another_base_runs_again(self) -> None:
         env = dict(self.env, JLOG_RUN="run-1")
         code, out = self.just("python::api-prose-check", env=env)
