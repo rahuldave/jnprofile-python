@@ -3,7 +3,7 @@
 
 # Run the integration tests in tests/integration with coverage, into .jnprofile-python/integration.xml. Extra
 # arguments go to pytest in place of the folder: just integration tests/integration/test_db.py. With no folder
-# tests/integration, it passes. When coverage-check ran them in this run of just, on this tree, they do not run again
+# tests/integration, it passes. When they passed before in this run of just, on this tree, they do not run again
 integration *args:
     {{python_run}} {{python_steps}} ran integration "$@" || just --justfile {{quote(module_file())}} _integration "$@"
 

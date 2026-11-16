@@ -43,8 +43,8 @@ settings win over the settings of the own file.
 - **`just lint`** runs the `lint` of each language of the project. In a
   project that has only Python, it is the same as `just python lint`.
 - **`just verify`** runs every installed check of each language, then `git
-  diff --check`. For Python, the checks are `fmt-check`, `lint`, `test`,
-  `coverage-check`, `integration`, `docstring-check`, `api-check` and
+  diff --check`. For Python, the checks are `fmt-check`, `lint`, `integration`,
+  `test`, `coverage-check`, `docstring-check`, `api-check` and
   `typecheck`, for each tool that is installed.
 - **With more than one language**, a combined recipe such as `just test x`
   gives the same arguments to each language. To give arguments to one
@@ -87,14 +87,15 @@ module only, so it runs `just python NAME`.
   no docstring, public or private. It names the file and the line. A magic
   method, such as `__repr__`, `__init__`, an `@overload` stub, a property
   setter and a property deleter do not count. The files that
-  `.agents/generated.txt` of the parent commit names do not count. When the
-  step `docs-check` does not run `api-check`, `docstring-check` runs it.
-- **`integration`** runs the tests in `tests/integration`. Then `just test` does not
-  run them. Put a test there when it needs a real service or a slow setup.
+  `.agents/generated.txt` of the parent commit names do not count.
+- **`integration`** runs the tests in `tests/integration`, before
+  `coverage-check`. Then `just test` does not run them. Put a test there
+  when it needs a real service or a slow setup.
 - **`api-check`** fails on each function, method or class with no
   docstring, no type, or no docment, the comment after a parameter or after
   the return type. smalldocs checks private functions too. The step
-  `docs-check` of the docs role runs it. Its output names the module and the
+  `docs-check` of the docs role runs it. Without that role, no step runs it,
+  but `just api-check` still works. Its output names the module and the
   function, as `m:sub(a): no docment`. Write the docment as a comment:
 
   ```python
@@ -107,7 +108,7 @@ module only, so it runs `just python NAME`.
 
 - **`api-prose-check`** checks the API page of each changed module with the
   checker of nossaifd. Fix a hard problem in the docstring that it comes
-  from.
+  from. `api-check` runs it, and it runs once in a run of `just check`.
 
 ## Rules for agents
 

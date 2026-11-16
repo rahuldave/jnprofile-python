@@ -14,7 +14,7 @@ ROOT = ('export JLOG_RUN := env("JLOG_RUN", uuid())\nmod python ".agents/just/py
 # The step docs-check of the docs role of jnterfaces: it runs the api-check of each language.
 DOCS_ROLE = ('\ndocs-check:\n    recipes="$(just --justfile {{quote(justfile())}} --summary)" && if printf \'%s\\n\' '
              '$recipes | grep -qx api-check; then just --justfile {{quote(justfile())}} api-check; fi\n')
-STEPS = ["fmt-check", "lint", "typecheck", "test", "coverage-check", "integration", "docstring-check", "docs-check",
+STEPS = ["fmt-check", "lint", "typecheck", "test", "integration", "coverage-check", "docstring-check", "docs-check",
          "prose-check", "diff-check"]
 # Code with every docstring, type and docment that smalldocs api check wants.
 TYPED = ('"""Math."""\n\n\ndef add(\n    a: int,  # The first number\n    b: int,  # The second number\n'
@@ -43,14 +43,23 @@ class IntegrationTests(ProjectCase):
         self.commit()
         self.write("m.py", CODE + UNTYPED)
         env = dict(self.env, JLOG_RUN="run-1")
-        code, out = self.just("python::coverage-check", env=env)
-        self.assertEqual(code, 0, out)
-        self.assertIn("no report of the integration tests of this run and this tree, so they run now", out)
-        # The step integration of the same run does not run the tests again.
+        # just check runs integration, then coverage-check, which reads the report of that run.
         code, out = self.just("python::integration", env=env)
         self.assertEqual(code, 0, out)
-        self.assertIn("integration: it passed before in this run, run-1, on this tree", out)
+        code, out = self.just("python::coverage-check", env=env)
+        self.assertEqual(code, 0, out)
+        self.assertIn("the integration tests of this run, run-1, wrote the report, so they do not run again", out)
         self.assertNotIn("test_flow.py", out)
+
+    def test_coverage_check_runs_the_integration_tests_when_their_report_is_old(self) -> None:
+        self.steps(STEPS)
+        self.write("m.py", CODE)
+        self.commit()
+        self.write("m.py", CODE + UNTYPED)
+        self.just("python::integration", env=dict(self.env, JLOG_RUN="run-1"))
+        code, out = self.just("python::coverage-check", env=dict(self.env, JLOG_RUN="run-2"))
+        self.assertEqual(code, 0, out)
+        self.assertIn("no report of the integration tests of this run and this tree, so they run now", out)
 
     def test_a_line_that_only_integration_runs_fails_when_integration_is_not_in_check(self) -> None:
         self.steps([step for step in STEPS if step != "integration"])
@@ -129,34 +138,39 @@ class ApiTests(ProjectCase):
         self.assertIn("m:sub: no return type", out)
         self.assertIn("a docment: a comment after each parameter", out)
 
-    def test_docstring_check_runs_api_check_when_docs_check_does_not(self) -> None:
-        self.write("m.py", TYPED + UNTYPED)
-        code, out = self.just("python::docstring-check")
-        self.assertEqual(code, 1, out)
-        self.assertIn("api-check: the step docs-check does not run it, so it runs now", out)
-        self.assertIn("m:sub(a): no docment", out)
-
-    def test_with_the_docs_role_docs_check_runs_api_check_and_docstring_check_does_not(self) -> None:
-        self.write("Justfile", ROOT + DOCS_ROLE)
+    def test_docstring_check_does_not_check_the_docments(self) -> None:
+        # Without the docs role, no step runs api-check: the docments are a check of the docs site.
         self.write("m.py", TYPED + UNTYPED)
         code, out = self.just("python::docstring-check")
         self.assertEqual(code, 0, out)
-        self.assertIn("api-check: the step docs-check runs it", out)
+        self.assertNotIn("api-check", out)
+
+    def test_the_docs_check_of_the_docs_role_runs_api_check(self) -> None:
+        self.write("Justfile", ROOT + DOCS_ROLE)
+        self.write("m.py", TYPED + UNTYPED)
         code, out = self.just("docs-check")
         self.assertEqual(code, 1, out)
         self.assertIn("m:sub(a): no docment", out)
+        self.write("m.py", TYPED)
+        code, out = self.just("docs-check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("api-check: smalldocs api check", out)
 
-    def test_api_check_runs_once_in_a_run(self) -> None:
+    def test_api_prose_check_runs_once_in_a_run(self) -> None:
+        # api-check runs it, and a later prose-check that calls it does not run it again.
+        self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
         env = dict(self.env, JLOG_RUN="run-1")
-        code, out = self.just("python::api-check", env=env)
-        self.assertEqual(code, 0, out)
         code, out = self.just("api-check", env=env)
         self.assertEqual(code, 0, out)
-        self.assertIn("api: it passed before in this run, run-1, on this tree", out)
+        self.assertIn("m.md: 0 hard", out)
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertEqual(code, 0, out)
+        self.assertIn("api-prose-check: it passed before in this run, run-1, on this tree", out)
         # A changed tree runs it again, and fails it.
-        self.write("m.py", TYPED + UNTYPED)
-        code, out = self.just("api-check", env=env)
+        self.write("m.py", TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""'))
+        code, out = self.just("python::api-prose-check", env=env)
         self.assertEqual(code, 1, out)
+        self.assertIn("m.md: 1 hard", out)
 
     def test_the_api_settings_of_the_docs_config_win(self) -> None:
         self.write("m.py", TYPED + UNTYPED)
@@ -233,12 +247,12 @@ class ApiTests(ProjectCase):
         self.assertIn("fix each hard problem in the docstring", out)
         self.assertEqual(self.status(), before)
 
-    def test_api_check_runs_the_prose_check_of_the_pages_when_prose_check_does_not(self) -> None:
+    def test_api_check_runs_the_prose_check_of_the_pages(self) -> None:
         self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
         self.write("m.py", TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""'))
         code, out = self.just("python::api-check")
         self.assertEqual(code, 1, out)
-        self.assertIn("api-prose-check: the step prose-check does not run it, so it runs now", out)
+        self.assertIn("api-prose-check: the API pages of m", out)
         self.assertIn("m.md: 1 hard", out)
 
     def test_with_no_checker_the_api_pages_are_not_checked(self) -> None:

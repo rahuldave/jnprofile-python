@@ -1,10 +1,10 @@
 """The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
 The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
-begin NAME ARG..., stamp NAME, hook ROOT MODULE STEP RECIPE, api check, api prose and pages. NAME is test,
-integration or api. begin, stamp and fresh tie a coverage report, or the pass of api-check, to the run ID JLOG_RUN of
-the root Justfile and to the worktree tree. So coverage-check reads the reports of test and integration only from
-the same run, and a check that two steps need runs once in a run. It needs Python 3.9 or later. The step
+begin NAME ARG..., stamp NAME, api check, api prose and pages. NAME is test, integration or prose. begin, stamp and
+fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root Justfile and to the
+worktree tree. So coverage-check reads the reports of test and integration only from the same run, and a check that
+two steps need runs once in a run. It needs Python 3.9 or later. The step
 coverage-check also needs diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment
 of the project, with interrogate, so that it parses the code with the Python of the project. pages runs there too,
 with smalldocs.
@@ -35,8 +35,8 @@ WORK = Path('.jnprofile-python')
 REPORT = WORK / 'coverage.xml'
 INTEGRATION = WORK / 'integration.xml'
 # The report of each kind of run that begin and stamp tie to a run of just. test and integration write a coverage
-# report. api-check writes none, so only its pass counts.
-REPORTS = {'test': REPORT, 'integration': INTEGRATION, 'api': None}
+# report. api-prose-check writes none, so only its pass counts.
+REPORTS = {'test': REPORT, 'integration': INTEGRATION, 'prose': None}
 # The data file of coverage.py for each run, so that an --cov-append of the project adds to no old run.
 DATA = {'test': WORK / '.coverage', 'integration': WORK / '.coverage-integration'}
 RECORD = Path('.agents/stack.json')
@@ -188,6 +188,11 @@ def worktree_tree():
         Path(str(index) + '.lock').unlink(missing_ok=True)
 
 
+def recipe_of(name):
+    """The recipe of the run NAME, for a message: prose is the run of api-prose-check."""
+    return 'api-prose-check' if name == 'prose' else name
+
+
 def run_file(name):
     """The file that holds the run ID and the tree of the last run of NAME that passed."""
     return WORK / ('run.json' if name == 'test' else f'{name}-run.json')
@@ -199,7 +204,7 @@ def pending_file(name):
 
 
 def begin(name, args):
-    """Save the run ID and the worktree tree before a run of NAME, test, integration or api, in its pending file.
+    """Save the run ID and the worktree tree before a run of NAME, test, integration or prose, in its pending file.
 
     Only a run with no ARGS, inside a run of just that has JLOG_RUN, saves them. Any other run saves nothing, so the
     next step runs it again. The old report goes, so a failed run leaves none. Returns the exit code, always 0.
@@ -233,7 +238,8 @@ def stamp(name):
         saved['report'] = report is not None and report.is_file()
         run_file(name).write_text(json.dumps(saved) + '\n')
     else:
-        print(f'{name}: a file changed during the run, so the next step that needs it runs it again', file=sys.stderr)
+        print(f'{recipe_of(name)}: a file changed during the run, so the next step that needs it runs it again',
+              file=sys.stderr)
     return 0
 
 
@@ -290,10 +296,10 @@ def fresh(name, module):
 
 def ran(name, args):
     """True when NAME passed before in this run of just and on this tree, and ARGS is empty. So a check that two
-    steps of just check need, such as integration or api-check, runs once."""
+    steps of just check can need, such as integration or api-prose-check, runs once."""
     run = None if args else same_run(name)
     if run:
-        print(f'{name}: it passed before in this run, {run}, on this tree, so it does not run again')
+        print(f'{recipe_of(name)}: it passed before in this run, {run}, on this tree, so it does not run again')
     return bool(run)
 
 
@@ -440,68 +446,6 @@ def docs():
               file=sys.stderr)
         return 1
     return 0
-
-
-def runs_recipe(root, step, recipe):
-    """True when the recipe STEP of the Justfile ROOT runs RECIPE: a line of it that is not a comment runs just with
-    RECIPE as a word, outside quotes, after it. A line that only names it, as echo "run just api-check", does not count.
-
-    The docs role of jnterfaces writes docs-check so that it runs the api-check of each language.
-    """
-    run = subprocess.run(['just', '--justfile', str(root), '--show', step], capture_output=True, text=True)
-    return run.returncode == 0 and runs_in(run.stdout, recipe)
-
-
-def runs_in(text, recipe):
-    """True when a line of the recipe TEXT, as just --show prints it, runs just with RECIPE, as runs_recipe says."""
-    # The options that choose the Justfile. Any other option, such as --dry-run or --show, runs no recipe.
-    with_value = {'--justfile', '-f', '--working-directory', '-d'}
-    for line in text.splitlines():
-        if line.lstrip().startswith('#'):
-            continue
-        # The text inside quotes is a message or a pattern, not a command. A separator ends a command.
-        bare = re.sub(r'"[^"]*"|\'[^\']*\'', '""', line)
-        # An interpolation of just, as {{ quote(justfile()) }}, is one word.
-        bare = re.sub(r'\{\{.*?\}\}', 'WORD', bare)
-        for command in re.split(r'[;&|()`]|\$\(', bare):
-            words = command.split()
-            # A keyword of the shell, as in if ...; then just api-check; fi, comes before the command.
-            while words and words[0] in ('then', 'do', 'else', 'if', '!', 'exec', 'command'):
-                words = words[1:]
-            if not words or words[0].lstrip('@') != 'just':
-                continue
-            rest, index = words[1:], 0
-            while index < len(rest):
-                word = rest[index]
-                if word in with_value:
-                    index += 2
-                    continue
-                if word.split('=')[0] in with_value:
-                    index += 1
-                    continue
-                if word.startswith('-'):
-                    break
-                if word == recipe or word.endswith('::' + recipe):
-                    return True
-                index += 1
-    return False
-
-
-def hook(root, module, step, recipe):
-    """Run RECIPE of the module MODULE when the module has it and the step STEP of the Justfile ROOT does not run it.
-
-    So the check runs once in just check: in STEP when a role fills STEP with a recipe that runs it, and otherwise in
-    the step of the profile that calls hook. Returns the exit code.
-    """
-    if recipe not in recipes_of(module):
-        return 0
-    if runs_recipe(root, step, recipe):
-        print(f'{recipe}: the step {step} runs it')
-        return 0
-    print(f'{recipe}: the step {step} does not run it, so it runs now', flush=True)
-    # The recipe runs through the module, so it learns the Justfile of the project from this variable.
-    env = dict(os.environ, JNPROFILE_PYTHON_ROOT=os.path.realpath(root))
-    return subprocess.run(['just', '--justfile', str(module), recipe], env=env).returncode
 
 
 def project_name():
@@ -684,14 +628,12 @@ def main(argv):
         return begin(argv[1], argv[2:])
     if argv[:1] == ['stamp'] and len(argv) == 2 and argv[1] in REPORTS:
         return stamp(argv[1])
-    if argv[:1] == ['hook'] and len(argv) == 5:
-        return hook(*argv[1:])
     if argv[:1] == ['api'] and argv[1:] in (['check'], ['prose']):
         return api(argv[1])
     if argv[:1] == ['pages'] and len(argv) >= 3:
         return pages(argv[1], argv[2], argv[3:])
     print('usage: steps.py coverage [MODULE] | docs | fresh NAME MODULE | ran NAME [ARG...] | begin NAME [ARG...] | '
-          'stamp NAME | hook ROOT MODULE STEP RECIPE | api check | api prose | pages FOLDER OUT [FILE...]',
+          'stamp NAME | api check | api prose | pages FOLDER OUT [FILE...]',
           file=sys.stderr)
     return 2
 

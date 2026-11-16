@@ -254,7 +254,7 @@ class ProfileTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("just"), "needs just")
     def test_no_step_is_a_shebang_recipe(self) -> None:
-        steps = ("fmt-check", "lint", "typecheck", "test", "coverage-check", "integration", "docstring-check",
+        steps = ("fmt-check", "lint", "typecheck", "test", "integration", "coverage-check", "docstring-check",
                  "docs-check", "prose-check", "diff-check")
         with tempfile.TemporaryDirectory() as temp:
             shutil.copytree(FOLDER, Path(temp) / "python")
@@ -271,21 +271,17 @@ class ProfileTests(unittest.TestCase):
                 self.assertFalse(any(line and isinstance(line[0], str) and line[0].lstrip("@").startswith("-")
                                      for line in recipes[name]["body"]), name)
 
-    def test_the_hook_counts_only_a_line_that_runs_the_recipe_with_just(self) -> None:
-        runs_in = load_steps().runs_in
-        role = ('docs-check:\n    recipes="$(just --justfile {{ quote(justfile()) }} --summary)" && if printf \'%s\\n\' '
-                '$recipes | grep -qx api-check; then just --justfile {{ quote(justfile()) }} api-check; fi\n')
-        self.assertTrue(runs_in(role, "api-check"))
-        self.assertTrue(runs_in("docs-check:\n    just python::api-check\n", "api-check"))
-        self.assertTrue(runs_in("docs-check:\n    just api-check\n", "api-check"))
-        self.assertFalse(runs_in('docs-check:\n    echo "run just api-check by hand"\n', "api-check"))
-        self.assertFalse(runs_in("# just api-check\ndocs-check:\n    smalldocs check docs\n", "api-check"))
-        self.assertFalse(runs_in("docs-check:\n    just my-api-check\n", "api-check"))
-        self.assertFalse(runs_in("docs-check:\n    grep -qx api-check file\n", "api-check"))
-        for line in ("echo just api-check", "just --dry-run api-check", "just --show api-check"):
-            self.assertFalse(runs_in(f"docs-check:\n    {line}\n", "api-check"), line)
-        for line in ("@just api-check", "x=$(just api-check)", "true && just --justfile=J python::api-check"):
-            self.assertTrue(runs_in(f"docs-check:\n    {line}\n", "api-check"), line)
+    def test_the_messages_of_the_prose_run_name_api_prose_check(self) -> None:
+        steps = load_steps()
+        self.assertEqual(steps.recipe_of("prose"), "api-prose-check")
+        self.assertEqual(steps.recipe_of("integration"), "integration")
+
+    def test_the_tools_page_says_the_pythonpath_part_under_the_test_tool(self) -> None:
+        section = None
+        for line in (REPO / "docs/tools.md").read_text().splitlines():
+            section = line[3:] if line.startswith("## ") else section
+            if "pythonpath" in line:
+                self.assertEqual(section, "test", line)
 
     def test_the_name_of_the_project_comes_from_pyproject(self) -> None:
         steps = load_steps()

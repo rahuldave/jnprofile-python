@@ -45,6 +45,23 @@ The packages are pytest and pytest-cov, in the group `test`.
 
 The tool adds `.pytest_cache/`, `.coverage`, `htmlcov/` and `.jnprofile-python/` to `.gitignore` and to `.worktreedisposable`.
 
+The profile names its files for the commit gates. The code is `**/*.py`. The test files are `tests/**`,
+`**/test_*.py`, `**/*_test.py` and `**/conftest.py`. `test-parent` copies only the test files into the parent commit,
+so no new code reaches it.
+
+The tool also adds the item `"."` to `tool.pytest.ini_options.pythonpath` in `pyproject.toml`. So a test in `tests/` can import a module at the top of the project, such as `app.py`.
+
+- **Your `pythonpath` list** keeps its items, and gets `"."` too.
+- **A `pythonpath` string of yours**, such as `"src"`, stays as it is. The installer adds nothing to it.
+- **A pytest config of your own** makes the installer leave out the part. pytest reads only one config, so the part would hide yours. The installer looks for these configs:
+  - `[tool.pytest]` with settings in `pyproject.toml`, which pytest 9 reads
+  - `pytest.toml`, `.pytest.toml`, `pytest.ini` or `.pytest.ini`
+  - `[pytest]` in `tox.ini`, or `[tool:pytest]` in `setup.cfg`
+
+  In that case, if your tests need it, add `pythonpath = ["."]` to your config yourself.
+
+  The installer looks for these configs only when it adds the part. If you add a pytest config after the install, the part stays in `pyproject.toml`, and pytest no longer reads the part. Add `pythonpath = ["."]` to your config, or run `just uninstall test` and `just install test` to take the part out.
+
 ### coverage-check
 
 `coverage-check` compares the coverage report with the parent commit. It runs diff-cover with a limit of 100%.
@@ -65,7 +82,7 @@ The packages are pytest and pytest-cov, in the group `test`. The tool is not a d
 |---|---|
 | `just integration` | Runs the tests in `tests/integration`, and writes their coverage to `.jnprofile-python/integration.xml`. Extra arguments go to pytest in place of the folder: `just integration tests/integration/test_db.py`. With no folder `tests/integration`, it passes. It is a step of `just check` |
 
-`just check` runs `coverage-check` before `integration`. So `coverage-check` runs the integration tests, and then the step `integration` of the same run and the same tree does not run them again. It says "it passed before in this run".
+`just check` runs `integration` before `coverage-check`. So `coverage-check` reads the report of the step `integration` of the same run, and does not run the integration tests again. When `just integration` runs after it passed in the same run, on the same tree, it says "it passed before in this run" and does not run the tests again.
 
 The tool adds the same lines to `.gitignore` and to `.worktreedisposable` as the tool `test`.
 
@@ -79,15 +96,15 @@ The tool has no package. uv runs interrogate in the environment of the project, 
 
 A magic method, such as `__repr__`, and `__init__` do not count. The protocol and the docstring of the class say what they do. An `@overload` stub, a property setter and a property deleter do not count either, because the function and the getter have the docstring. The test files, the files in `.agents`, `.claude` and `.codex`, and the files that `.agents/generated.txt` of the parent commit names do not count.
 
-`api-check` of the tool `api` checks the docments. `docstring-check` does not. A docment is the comment after a parameter or after the return type. When the step `docs-check` of the project does not run `api-check`, `docstring-check` runs it, so `just check` runs it once.
+`api-check` of the tool `api` checks the docments. `docstring-check` does not. A docment is the comment after a parameter or after the return type.
 
 ## api
 
-The tool has no package. uv runs smalldocs 0.5.5 in the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later. The tool is a default tool.
+The tool has no package. uv runs smalldocs 0.5.5 in the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
 
 | Recipe | What it does |
 |---|---|
-| `just api-check` | Runs `smalldocs api check`. It fails on each function, method or class with no docstring, no type for a parameter or the return, or no docment. It names the module and the function, for example `m:sub(a): no docment` |
+| `just api-check` | Runs `smalldocs api check`. It fails on each function, method or class with no docstring, no type for a parameter or the return, or no docment. It names the module and the function, for example `m:sub(a): no docment`. Then it runs `api-prose-check` |
 | `just api-prose-check` | Checks the API page of each changed module with the checker of nossaifd. A changed module is a module with a change against `HEAD`, or each module on the first commit |
 
 The settings of `api-check`:
@@ -100,37 +117,14 @@ The settings of `api-check`:
 
 smalldocs checks every function, public and private. Its pages show only the public ones.
 
-Where `api-check` runs:
+Where the checks run:
 
-- **With the docs role** of jnterfaces, the step `docs-check` runs `api-check`.
-- **Without it**, the step `docstring-check` runs `api-check`. The profile cannot have a step `docs-check` of its own, because the installer stops when a profile and a role both have a step. So with no docs role and no tool `docstring`, `just check` does not run `api-check`. `just verify` still runs it.
-- **Once in a run.** `api-check` saves the run ID and the tree when it passes. Another call in the same run of `just check`, on the same tree, does not run it again.
-
-Where `api-prose-check` runs:
-
-- **When the step `prose-check` of the project runs it**, it runs there.
-- **Otherwise**, `api-check` runs it. The `prose-check` of nossaifd does not run it yet.
+- **`api-check`** runs in the step `docs-check` of the docs role of jnterfaces. That step runs the `api-check` of each language that has one. The docments are a check of the docs site, so without the docs role no step of `just check` runs `api-check`. You can still run `just api-check`, and `just verify` runs it.
+- **`api-prose-check`** runs in `api-check`. A step `prose-check` can run it too. It runs once in a run. When it passed before in the same run of `just check`, on the same tree, it says so and does not run again.
 
 `api-prose-check` writes each page into a temporary folder outside the project. The page is the text that `smalldocs api module NAME` prints. The step makes it with the same function of smalldocs, in one run for all the modules.
 
 Then it runs `.agents/skills/nossaifd/scripts/check.py` on the pages. A hard problem fails the step. Fix it in the docstring that it comes from. Without the prose role, which installs the checker, the step passes and says so.
-
-The profile names its files for the commit gates. The code is `**/*.py`. The test files are `tests/**`,
-`**/test_*.py`, `**/*_test.py` and `**/conftest.py`. `test-parent` copies only the test files into the parent commit,
-so no new code reaches it.
-
-The tool also adds the item `"."` to `tool.pytest.ini_options.pythonpath` in `pyproject.toml`. So a test in `tests/` can import a module at the top of the project, such as `app.py`.
-
-- **Your `pythonpath` list** keeps its items, and gets `"."` too.
-- **A `pythonpath` string of yours**, such as `"src"`, stays as it is. The installer adds nothing to it.
-- **A pytest config of your own** makes the installer leave out the part. pytest reads only one config, so the part would hide yours. The installer looks for these configs:
-  - `[tool.pytest]` with settings in `pyproject.toml`, which pytest 9 reads
-  - `pytest.toml`, `.pytest.toml`, `pytest.ini` or `.pytest.ini`
-  - `[pytest]` in `tox.ini`, or `[tool:pytest]` in `setup.cfg`
-
-  In that case, if your tests need it, add `pythonpath = ["."]` to your config yourself.
-
-  The installer looks for these configs only when it adds the part. If you add a pytest config after the install, the part stays in `pyproject.toml`, and pytest no longer reads the part. Add `pythonpath = ["."]` to your config, or run `just uninstall test` and `just install test` to take the part out.
 
 ## typecheck
 
