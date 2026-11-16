@@ -125,8 +125,9 @@ class ApiRuleTests(unittest.TestCase):
         self.write("code/pkg/__init__.py")
         self.write("docs/_smalldocs.yml", "api:\n  packages: [pkg]\n  root: ../code\n")
         self.assertEqual(self.is_api("code/pkg/x.py", "pkg/x.py"), [True, False])
+        # A root out of the repository cannot be read, so each Python file counts.
         self.write("docs/_smalldocs.yml", "api:\n  packages: [pkg]\n  root: ../../away\n")
-        self.assertEqual(self.is_api("code/pkg/x.py"), [False])
+        self.assertEqual(self.is_api("code/pkg/x.py"), [True])
 
     def test_without_the_api_tool_or_the_docs_role_no_path_counts(self) -> None:
         self.write("pkg/__init__.py")
@@ -140,24 +141,36 @@ class ApiRuleTests(unittest.TestCase):
     def test_no_config_and_no_package_gives_false(self) -> None:
         self.assertEqual(self.is_api("x.py", "pkg/x.py"), [False, False])
 
-    def test_a_broken_config_gives_false_and_no_crash(self) -> None:
+    def test_a_broken_config_counts_each_python_file_and_does_not_crash(self) -> None:
         self.write("pkg/__init__.py")
+        self.write(".agents/generated.txt", "made/\n")
         for text in ("api: {packages: [pkg]}\n", "api:\n  packages: [pkg\n", "api:\n  packages: 'pkg\n",
                      "api:\n  - packages: [pkg]\n   oops\n", "api:\n  just text\n"):
             self.write("docs/_smalldocs.yml", text)
-            self.assertEqual(self.is_api("pkg/x.py"), [False], text)
+            # The gate stays on: each Python file outside the tools and generated.txt counts.
+            self.assertEqual(self.is_api("pkg/x.py", "loose/y.py", "README.md", ".agents/just/python/steps.py",
+                                         ".claude/x.py", ".codex/x.py", "made/z.py"),
+                             [True, True, False, False, False, False, False], text)
         # A config that is not UTF-8 has no key api that api-check reads, so the found packages count, as there.
         (self.root / "docs/_smalldocs.yml").write_bytes(b"api:\n  packages: [other]\n\xff")
         self.assertEqual(self.is_api("pkg/x.py"), [True])
+        # A record that cannot be read shows no api tool, so no path counts.
         self.write(".agents/stack.json", "{not json")
         self.assertEqual(self.is_api("pkg/x.py"), [False])
         (self.root / ".agents/stack.json").write_bytes(b"\xff\xfe")
         self.assertEqual(self.is_api("pkg/x.py"), [False])
 
-    def test_an_empty_key_api_gives_false(self) -> None:
-        self.write("pkg/__init__.py")
-        self.write("docs/_smalldocs.yml", "api:\nproject:\n  type: website\n")
-        self.assertEqual(self.is_api("pkg/x.py"), [False])
+    def test_an_empty_key_api_or_a_section_with_no_packages_counts_each_python_file(self) -> None:
+        for text in ("api:\nproject:\n  type: website\n", "api:\n  out: api\n", "api:\n  - check: ['x/*.py']\n"):
+            self.write("docs/_smalldocs.yml", text)
+            self.assertEqual(self.is_api("loose/x.py", "loose/x.md"), [True, False], text)
+
+    def test_a_broken_config_without_the_api_tool_or_the_docs_role_gives_false(self) -> None:
+        self.write("docs/_smalldocs.yml", "api: {packages: [pkg]}\n")
+        for record in ({"tools": ["python:lint"], "choices": {"docs": True}},
+                       {"tools": ["python:api"], "choices": {"docs": False}}):
+            self.write(".agents/stack.json", json.dumps(record))
+            self.assertEqual(self.is_api("pkg/x.py"), [False], record)
 
     def test_it_writes_nothing(self) -> None:
         self.write("pkg/__init__.py")

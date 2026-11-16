@@ -34,21 +34,44 @@ TOOL_FOLDERS = ('.agents/', '.claude/', '.codex/')
 
 
 def is_api(path):
-    """True when PATH, relative to the top of the repository, is a source file of the API pages. False on any error."""
+    """True when PATH, relative to the top of the repository, is a source file of the API pages.
+
+    Without the api tool or the docs role, it is False. When the rule cannot read the api settings, it is True for
+    each Python file outside the folders of the tools and .agents/generated.txt, so that the gate asks for a record
+    rather than let a change of the API pages through without notice. It never raises.
+    """
+    try:
+        path = clean(path)
+        if not path or not path.endswith('.py') or not api_on():
+            return False
+    except Exception:  # noqa: BLE001 - a path or a record that cannot be read gives no page of the API
+        return False
     try:
         return _is_api(path)
-    except Exception:  # noqa: BLE001 - a setting that cannot be read gives False, so the gate never stops on it
+    except Exception:  # noqa: BLE001 - settings that cannot be read count each Python file, so the gate stays on
+        return fail_closed(path)
+
+
+def fail_closed(path):
+    """is_api when the settings cannot be read: True for a Python file outside the tools and generated.txt."""
+    if path.startswith(TOOL_FOLDERS):
         return False
+    try:
+        return not generated(path)
+    except Exception:  # noqa: BLE001 - a list that cannot be read exempts nothing
+        return True
 
 
 def _is_api(path):
-    """is_api, which may raise on a setting that cannot be read."""
-    path = clean(path)
-    if not path or not path.endswith('.py') or not api_on():
-        return False
+    """is_api for the Python file PATH of a project with the api tool and the docs role. It raises on api settings
+    that it cannot read: a form of YAML out of its scope, an empty key api, or a section of Python with no packages,
+    which smalldocs does not take either."""
     text = read(DOCS_CONFIG)
     if text is not None and re.search(r'^api\s*:', text, re.MULTILINE):
-        return any(in_section(path, section) for section in api_sections(text))
+        sections = api_sections(text)
+        if not sections:
+            raise ValueError('the key api is empty')
+        return any(in_section(path, section) for section in sections)
     return in_found(path)
 
 
@@ -192,6 +215,8 @@ def in_section(path, section):
     """True when PATH is a file of a python section of the api settings: of its packages or of its check globs."""
     if str(section.get('language', 'python')) != 'python':
         return False
+    if not (section.get('packages') or section.get('package')):
+        raise ValueError('a section of Python with no packages')
     root = site_root(section)
     if not path.startswith(root):
         return False
