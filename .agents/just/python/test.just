@@ -37,6 +37,13 @@ test-paths *files:
     # uv makes the environment first, so a failed install is a failed runner, not a failed test.
     uv run true || { echo "just test-paths: uv cannot make the environment of the project"; exit 2; }
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    # pytest on Python 3.10 and 3.11 reads a file such as -dash_test.py as an option, also after --. So a file that
+    # exists and starts with - goes as ./-dash_test.py.
+    for file in "$@"; do
+        shift
+        case "$file" in -*) [ -e "$file" ] && file="./$file" ;; esac
+        set -- "$@" "$file"
+    done
     code=0
     PYTEST_ADDOPTS= uv run pytest -p no:cacheprovider -o addopts= \
         -rfEsxXp --continue-on-collection-errors --junitxml="$tmp/report.xml" -- "$@" > "$tmp/out" 2>&1 || code=$?

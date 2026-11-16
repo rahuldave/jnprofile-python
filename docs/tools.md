@@ -41,7 +41,7 @@ The packages are pytest and pytest-cov, in the group `test`.
 | `just test` | Runs the tests, and writes their coverage to `.jnprofile-python/coverage.xml`. Extra arguments go to pytest: `just test tests/unit`. With no arguments, a project with no tests yet passes. With the tool `integration`, the tests in `tests/integration` do not run, because `just integration` runs them |
 | `just coverage-check` | Fails on each changed line of code that no test runs. It is a step of `just check` |
 | `just cov` | Runs the tests, and shows the lines that they ran. With no arguments, a project with no tests yet passes |
-| `just python::test-paths FILE...` | Runs only the test files that you name, for `test-parent` of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test |
+| `just python::test-paths FILE...` | Runs only the test files that you name, for `test-parent` of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test. A file whose name starts with `-` goes to pytest as `./NAME`, because pytest on Python 3.10 and 3.11 reads it as an option |
 
 The tool adds `.pytest_cache/`, `.coverage`, `htmlcov/` and `.jnprofile-python/` to `.gitignore` and to `.worktreedisposable`.
 
@@ -100,7 +100,9 @@ A magic method, such as `__repr__`, and `__init__` do not count. The protocol an
 
 ## api
 
-The tool has no package. uv runs smalldocs 0.5.12 in a copy of the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later, so uv runs it with Python 3.11 or later, also when `.python-version` or `UV_PYTHON` names an older one. The copy is isolated, so `.venv` of the project keeps its own Python. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
+The tool has no package. uv runs smalldocs 0.5.12 in a copy of the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later, so uv runs it with Python 3.11 or later, also when `.python-version` or `UV_PYTHON` names an older one. The step gives uv the floor 3.11 and the `requires-python` of the project at once, such as `>=3.11,>=3.10,<3.12`. So uv takes a Python that both allow, not a newer one above the upper limit of the project. The copy is isolated, so `.venv` of the project keeps its own Python.
+
+The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
 
 | Recipe | What it does |
 |---|---|
@@ -114,7 +116,8 @@ The settings of `api-check`:
 - **With a list of sections under the key `api`**, `api-prose-check` fails with exit 2. It reads only one section of Python settings.
 - **With no package and no such module**, the step passes.
 - **When an import fails**, smalldocs exits with 2, and the step says so. Name the packages in the key `api` of `docs/_smalldocs.yml`.
-- **When `requires-python` of the project allows no Python 3.11 or later**, smalldocs cannot run. Then the step passes with a note. With a key `api` in `docs/_smalldocs.yml`, the project asks for the check, so the step fails.
+- **When `requires-python` of the project allows no Python 3.11 or later**, smalldocs cannot run. Then the step passes with a note.
+- **When uv cannot run the project with Python 3.11 or later for another reason**, the step fails with the error of uv. Examples are no Python 3.11 on the machine with no download, and a dependency that does not build. With a key `api` in `docs/_smalldocs.yml`, the project asks for the check, so the step fails.
 
 smalldocs checks every function, public and private. Its pages show only the public ones.
 

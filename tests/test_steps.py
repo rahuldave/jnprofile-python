@@ -367,6 +367,32 @@ class ProfileTests(unittest.TestCase):
             (folder / "two.just").write_text("lint:\n    echo again\n")
             self.assertEqual(lint.main([str(folder)]), 1)
 
+    def test_requires_python_rules_out_3_11_only_when_no_3_11_or_later_fits(self) -> None:
+        steps = load_steps()
+        ruled_out = (">=3.9,<3.11", "<3.11", "==3.10.*", "~=3.10.0", "<=3.10.99", "==3.9")
+        allowed = ("", ">=3.9", ">=3.10,<3.12", "~=3.10", ">=3.12", ">3.10.5,!=3.11.*", "==3.12", "== 3.11.*",
+                   ">=3.9, <4", "weird text")
+        for limits in ruled_out:
+            self.assertTrue(steps.rules_out_floor(limits), limits)
+        for limits in allowed:
+            self.assertFalse(steps.rules_out_floor(limits), limits)
+
+    def test_uv_gets_the_floor_of_smalldocs_and_requires_python_at_once(self) -> None:
+        steps = load_steps()
+        here = os.getcwd()
+        with tempfile.TemporaryDirectory() as temp:
+            os.chdir(temp)
+            try:
+                self.assertEqual(steps.smalldocs_python(), ">=3.11")
+                Path("pyproject.toml").write_text('[project]\nname = "a"\nrequires-python = ">=3.10,<3.12"\n')
+                self.assertEqual(steps.smalldocs_python(), ">=3.11,>=3.10,<3.12")
+                self.assertEqual(steps.smalldocs("x")[:6], ["uv", "run", "--isolated", "--quiet", "--python",
+                                                            ">=3.11,>=3.10,<3.12"])
+                Path("pyproject.toml").write_text("[project\n")
+                self.assertEqual(steps.smalldocs_python(), ">=3.11")
+            finally:
+                os.chdir(here)
+
     def test_the_messages_of_the_prose_run_name_api_prose_check(self) -> None:
         steps = load_steps()
         self.assertEqual(steps.recipe_of("prose"), "api-prose-check")
