@@ -139,6 +139,33 @@ The changed modules of `api-prose-check`:
 
 Then it runs `.agents/skills/nossaifd/scripts/check.py` on the pages. A hard problem fails the step. Fix it in the docstring that it comes from. Without the prose role, which installs the checker, the step passes and says so.
 
+### The rule of the API pages for the commit gate
+
+A change to a docstring of a public function changes an API page. So the commit gate of agent_gest_git_skills asks for a record of the docs and of the prose. The gate must know which code files feed the API pages. The file `.agents/just/python/api_rule.py` tells it.
+
+- **The interface.** The file defines `is_api(path)`. It gives `True` when `path`, relative to the top of the repository, is a source file of the API pages. The gate loads the file from the parent commit and calls `is_api` on each changed path.
+- **How it runs.** The rule needs Python 3.9 or later and its standard library only. It runs with `python -I -B`, in the top of the repository, and writes nothing. It needs no YAML library. It reads the key `api` of `docs/_smalldocs.yml` with a small reader of its own.
+- **Where it comes from.** The profile package installs the folder `.agents/just/python` in each Python project, so every project gets the file. The installer does not let `files` of `profile.json` write into `.agents/just`. `.agents/generated.txt` does not name the file.
+- **Without the api tool or the docs role,** as `.agents/stack.json` records them, `is_api` gives `False` for every path. Then no step of `just check` runs `api-check`.
+- **On an error,** `is_api` gives `False` and does not stop. An example is a config that the rule cannot read.
+
+The rule is the rule of `api-check`. Only a Python file counts.
+
+- **With the key `api`** in `docs/_smalldocs.yml`, the rule reads each section of the language `python`. For each package of `packages`, such as `pkg.sub`, it takes the folder `src/pkg/sub` or `pkg/sub`, or the module `src/pkg/sub.py` or `pkg/sub.py`. It finds them as Python imports them, first in `src/`. A folder with an `__init__.py` or a module wins over a folder without one. Each glob of `check` adds the files that it matches. The folders start at `root`, which smalldocs reads from `docs/`.
+- **Without the key `api`**, the rule takes the packages that `api-check` finds. A package is a folder with an `__init__.py` at the top of the project or in `src/`. The rule also takes the module with the name of the project. A package or a module that is a test file, a file of the tools or a file of `.agents/generated.txt` does not count. In a package that counts, each file counts, as smalldocs documents each module of it.
+
+The reader of the key `api` reads a mapping or a list of mappings. A value is a plain value, a list in brackets on one line, or a list of lines that start with `- `. Other forms of YAML are out of its scope, and then `is_api` gives `False` for every path:
+
+- a section in braces, such as `api: {packages: [pkg]}`;
+- a dash alone on its line, with the mapping under it;
+- a list in brackets over more than one line;
+- a key in quotes;
+- a value with `>` or `|`.
+
+On Python 3.10 or older, the rule has no `tomllib`. Then it does not read the name of the project from a dotted key, such as `project.name = "my-app"`. A package that only an install puts on the path, such as a folder `python/`, is out of the scope of the rule too.
+
+`just live-api-rule` in this repository runs the live lab of the rule. It installs the profile and the docs role into a new project with the installer of jnterfaces, and makes a commit. Then it changes only a docstring, and checks that `is_api` of the parent commit accepts the file.
+
 ## typecheck
 
 The package is ty, in the group `lint`.
