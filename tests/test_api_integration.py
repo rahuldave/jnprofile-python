@@ -27,6 +27,16 @@ CHECKER = ('import sys\nfrom pathlib import Path\nbad = False\nfor name in sys.a
            '    hard = "basically" in Path(name).read_text()\n'
            '    print(f"{Path(name).name}: {int(hard)} hard, 0 soft")\n    bad = bad or hard\nsys.exit(1 if bad else 0)\n')
 
+# A stand-in that, like the checker of nossaifd, reads no front matter and no quoted string. So a page that puts the
+# first paragraph of the docstring of a module only in its front matter, as description: "...", passes it.
+BLIND_CHECKER = ('import re, sys\nfrom pathlib import Path\nbad = False\nfor name in sys.argv[1:]:\n'
+                 '    text = re.sub(r"\\A---\\n.*?\\n---\\n", "", Path(name).read_text(), flags=re.S)\n'
+                 '    hard = "basically" in re.sub(r\'"[^"]*"\', "QUOTE", text)\n'
+                 '    print(f"{Path(name).name}: {int(hard)} hard, 0 soft")\n    bad = bad or hard\n'
+                 'sys.exit(1 if bad else 0)\n')
+# The checker of nossaifd on this machine, for a check with the real rules.
+REAL_CHECKER = Path.home() / "Projects/nossaifd/.agents/skills/nossaifd/scripts/check.py"
+
 
 @unittest.skipUnless(TOOLS, "needs just, uv and git")
 class IntegrationTests(ProjectCase):
@@ -184,6 +194,17 @@ class ApiTests(ProjectCase):
         self.assertIn("with the api settings of docs/_smalldocs.yml", out)
         self.assertNotIn("m:sub", out)
 
+    def test_a_list_of_api_sections_fails_api_prose_check_with_2(self) -> None:
+        # smalldocs 0.5.11 and later take a list of sections under api. The prose step reads one section, so it says so.
+        self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
+        self.write("pkg/__init__.py", '"""Pkg."""\n')
+        self.write("pkg/core.py", TYPED)
+        self.write("docs/_smalldocs.yml", "project:\n  type: website\napi:\n  - packages: [pkg]\n")
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 2, out)
+        self.assertIn("api-prose-check: the key api of docs/_smalldocs.yml is a list of sections", out)
+        self.assertNotIn("Traceback", out)
+
     def test_the_packages_are_found_at_the_top_and_in_src(self) -> None:
         self.write("src/pkg/__init__.py", '"""Pkg."""\n')
         self.write("src/pkg/core.py", TYPED + UNTYPED)
@@ -256,6 +277,22 @@ class ApiTests(ProjectCase):
         self.assertEqual(code, 1, out)
         self.assertIn("api-prose-check: the API pages of m", out)
         self.assertIn("m.md: 1 hard", out)
+
+    def test_a_bad_first_paragraph_of_a_module_docstring_fails(self) -> None:
+        # The first paragraph is the description of the page. It must be in the body, where the checker reads it.
+        self.write(".agents/skills/nossaifd/scripts/check.py", BLIND_CHECKER)
+        self.write("m.py", TYPED.replace('"""Math."""', '"""Math, basically.\n\nMore about the module.\n"""'))
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("m.md: 1 hard", out)
+
+    @unittest.skipUnless(REAL_CHECKER.is_file(), "needs check.py of nossaifd")
+    def test_the_checker_of_nossaifd_finds_a_contraction_in_a_module_docstring(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/check.py", REAL_CHECKER.read_text())
+        self.write("m.py", TYPED.replace('"""Math."""', '"""Helpers that don\'t add."""'))
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("a contraction: don't", out)
 
     def test_with_no_checker_the_api_pages_are_not_checked(self) -> None:
         code, out = self.just("python::api-prose-check")

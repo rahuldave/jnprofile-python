@@ -1,5 +1,5 @@
 # The documentation site, from docs/, with smalldocs.
-smalldocs := "uvx --quiet smalldocs@0.5.5"
+smalldocs := "uvx --quiet smalldocs@0.5.12"
 
 docs-check:
   {{smalldocs}} check docs
