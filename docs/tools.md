@@ -100,7 +100,7 @@ A magic method, such as `__repr__`, and `__init__` do not count. The protocol an
 
 ## api
 
-The tool has no package. uv runs smalldocs 0.5.5 in the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
+The tool has no package. uv runs smalldocs 0.5.12 in the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later. The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.
 
 | Recipe | What it does |
 |---|---|
@@ -111,11 +111,14 @@ The settings of `api-check`:
 
 - **With a key `api` in `docs/_smalldocs.yml`**, smalldocs reads its settings there. The key `packages` names the packages to check.
 - **Otherwise**, the step writes a temporary config. It names each package at the top of the project or in `src/`. A package is a folder with an `__init__.py`. It also names the module with the name of the project in `pyproject.toml`. For the project `my-app`, that module is `my_app.py`. Other files at the top, such as `noxfile.py`, are often scripts, and an import would run them. So the step leaves them out. A name that starts with `_` is private, and the step leaves it out. The test files and the files that `.agents/generated.txt` of the parent commit names do not count.
+- **With a list of sections under the key `api`**, `api-prose-check` fails with exit 2. It reads only one section of Python settings.
 - **With no package and no such module**, the step passes.
 - **When an import fails**, smalldocs exits with 2, and the step says so. Name the packages in the key `api` of `docs/_smalldocs.yml`.
 - **With Python 3.10 or older in the project**, smalldocs cannot run. Then the step passes with a note. With a key `api` in `docs/_smalldocs.yml`, the project asks for the check, so the step fails.
 
 smalldocs checks every function, public and private. Its pages show only the public ones.
+
+The page that `api-prose-check` checks has the whole docstring of the module in its body, with the first paragraph. The checker of nossaifd does not read the front matter or a quoted string, so the step never puts a docstring there. A module with no public function, method or class has no API page, so the step does not check its docstring.
 
 Where the checks run:
 

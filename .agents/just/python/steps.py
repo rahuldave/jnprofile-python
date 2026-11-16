@@ -41,7 +41,7 @@ REPORTS = {'test': REPORT, 'integration': INTEGRATION, 'prose': None}
 # The data file of coverage.py for each run, so that an --cov-append of the project adds to no old run.
 DATA = {'test': WORK / '.coverage', 'integration': WORK / '.coverage-integration'}
 RECORD = Path('.agents/stack.json')
-SMALLDOCS = 'smalldocs==0.5.5'
+SMALLDOCS = 'smalldocs==0.5.12'
 DOCS_CONFIG = Path('docs/_smalldocs.yml')
 # The checker of nossaifd, which the prose role installs. api prose checks the API pages with it.
 PROSE_CHECKER = Path('.agents/skills/nossaifd/scripts/check.py')
@@ -703,7 +703,12 @@ def pages(folder, out, files):
     from smalldocs.config import load
 
     project = load(folder)
-    settings = smalldocs_api.Settings.read(project.root, project.smalldocs.get('api') or {})
+    conf = project.smalldocs.get('api') or {}
+    if not isinstance(conf, dict):
+        print(f'api-prose-check: the key api of {DOCS_CONFIG} is a list of sections, and this step reads only one '
+              f'section of Python settings. Give the key api one section', file=sys.stderr)
+        return 2
+    settings = smalldocs_api.Settings.read(project.root, conf)
     settings.importable()
     wanted = {Path(os.path.realpath(name)) for name in files}
     for package in settings.packages:
