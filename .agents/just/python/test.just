@@ -1,9 +1,18 @@
 # The test tool of the python profile: pytest and pytest-cov. just install test adds it, and jnprofile-python
 # installs this file.
 
-# Run the tests. Extra arguments go to pytest: just test tests/unit. Alone, a project with no tests yet passes
+# Run the tests with coverage, into .jnprofile-python/coverage.xml. Extra arguments go to pytest: just test tests/unit.
+# Alone, a project with no tests yet passes, and the run saves JLOG_RUN for coverage-check
 test *args:
+    {{python_run}} {{python_steps}} begin "$@"
     just --justfile {{quote(module_file())}} _pytest test "$@"
+    {{python_run}} {{python_steps}} stamp
+
+# Fail on each changed line of code that no test runs, and on the first commit on each line. It reads the report of
+# test only from the same run of just, JLOG_RUN, and the same tree. Otherwise it runs the tests first
+coverage-check:
+    {{python_run}} {{python_steps}} fresh || just --justfile {{quote(module_file())}} test
+    {{python_run}} {{python_steps}} coverage
 
 # Run the tests, and show which lines they ran. Alone, a project with no tests yet passes, as for just test
 cov *args:
@@ -40,8 +49,9 @@ test-paths *files:
         *) exit 2 ;;
     esac
 
-# pytest for test and cov. test is a step of just check, and jlog logs only the lines of a recipe with no shebang
-# line, so test runs this script in one line, through just. module_file() is the file of this module, and
+# pytest for test and cov, with coverage: test writes the report for coverage-check, and cov shows it. test is a
+# step of just check, and jlog logs only the lines of a recipe with no shebang line, so test runs this script in one
+# line, through just. module_file() is the file of this module, and
 # just runs it in the folder of the project, so the line works also when another Justfile loads this project.
 # pytest exits 5 when no test runs. With arguments that is a miss, and it fails. With none, it passes only when pytest
 # finds no test file at all: with addopts and PYTEST_ADDOPTS off, and with its summary saying so, because a conftest
@@ -49,7 +59,14 @@ test-paths *files:
 _pytest name *args:
     #!/usr/bin/env sh
     name="$1"; shift
-    if [ "$name" = cov ]; then set -- --cov --cov-report=term-missing "$@"; given=$(($# - 2)); else given=$#; fi
+    if [ "$name" = cov ]; then
+        set -- --cov --cov-report=term-missing "$@"
+    else
+        # A data file of its own, which begin deletes, so an --cov-append of the project adds to no old run.
+        export COVERAGE_FILE=.jnprofile-python/.coverage
+        set -- --cov --cov-report=xml:.jnprofile-python/coverage.xml "$@"
+    fi
+    given=$(($# - 2))
     uv run pytest "$@" && exit 0 || code=$?
     if [ "$code" -eq 5 ] && [ "$given" -eq 0 ]; then
         out=$(PYTEST_ADDOPTS= uv run pytest --collect-only -q -o addopts= 2>&1) || all=$?

@@ -5,6 +5,10 @@
 fmt *args:
     uv run ruff format "$@"
 
+# Check the format of the code, and change no file
+fmt-check:
+    uv run ruff format --check
+
 # Check the code against the rules in ruff.toml. Extra arguments go to ruff: just lint --fix
 lint *args:
     uv run ruff check "$@"

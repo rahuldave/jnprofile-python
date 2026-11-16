@@ -69,7 +69,7 @@
       ],
       "recipes": "lint.just",
       "verify": [
-        "fmt --check",
+        "fmt-check",
         "lint"
       ],
       "files": {
@@ -114,18 +114,21 @@
       ],
       "recipes": "test.just",
       "verify": [
-        "test"
+        "test",
+        "coverage-check"
       ],
       "lines": {
         ".gitignore": [
           ".pytest_cache/",
           ".coverage",
-          "htmlcov/"
+          "htmlcov/",
+          ".jnprofile-python/"
         ],
         ".worktreedisposable": [
           ".pytest_cache/",
           ".coverage",
-          "htmlcov/"
+          "htmlcov/",
+          ".jnprofile-python/"
         ]
       },
       "parts": {
@@ -164,6 +167,13 @@
         ]
       }
     },
+    "docstring": {
+      "packages": [],
+      "recipes": "docstring.just",
+      "verify": [
+        "docstring-check"
+      ]
+    },
     "typecheck": {
       "group": "lint",
       "packages": [
@@ -189,6 +199,7 @@
   },
   "default_tools": [
     "lint",
-    "test"
+    "test",
+    "docstring"
   ]
 }

@@ -14,7 +14,7 @@ Run this command in a project that has the jnterfaces installer:
 just install --profile python
 ```
 
-In a folder with no `pyproject.toml`, the command first runs `uv init --bare --no-workspace`. It then installs the tools `lint` and `test`. If you do not choose other roles, it also turns on the default roles of the profile, `tasker` and `prose`. The section [The roles](https://rahuldave.github.io/jnterfaces/#roles) of the jnterfaces guide says what each role installs.
+In a folder with no `pyproject.toml`, the command first runs `uv init --bare --no-workspace`. It then installs the tools `lint`, `test` and `docstring`. If you do not choose other roles, it also turns on the default roles of the profile, `tasker` and `prose`. The section [The roles](https://rahuldave.github.io/jnterfaces/#roles) of the jnterfaces guide says what each role installs.
 
 Then add or remove a tool:
 
@@ -29,8 +29,9 @@ The machine needs `just` and `uv`. `uv` runs Python and the tools. To install Py
 
 | Tool | Packages | Recipes |
 |---|---|---|
-| `lint` | ruff | `just fmt`, `just lint` |
-| `test` | pytest, pytest-cov | `just test`, `just cov` |
+| `lint` | ruff | `just fmt`, `just fmt-check`, `just lint` |
+| `test` | pytest, pytest-cov | `just test`, `just coverage-check`, `just cov` |
+| `docstring` | none; uv runs interrogate | `just docstring-check` |
 | `typecheck` | ty | `just typecheck` |
 
 [The tools](tools.md) gives each recipe and each part that a tool adds to a config file.

@@ -14,11 +14,12 @@ packages of the tool to a dependency group in `pyproject.toml`, adds its parts t
 | Tool | Packages, in the group | Recipes | Parts in config files | Lines in `.gitignore` and `.worktreedisposable` |
 |---|---|---|---|---|
 | none, always there | none | `setup` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
-| `lint` | ruff, in `lint` | `fmt`, `lint` | `ruff.toml` | `.ruff_cache/` |
-| `test` | pytest, pytest-cov, in `test` | `test`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/` |
+| `lint` | ruff, in `lint` | `fmt`, `fmt-check`, `lint` | `ruff.toml` | `.ruff_cache/` |
+| `test` | pytest, pytest-cov, in `test` | `test`, `coverage-check`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/`, `.jnprofile-python/` |
+| `docstring` | none; uv runs interrogate | `docstring-check` | none | none |
 | `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` | none |
 
-The default tools are `lint` and `test`.
+The default tools are `lint`, `test` and `docstring`.
 
 ## Parts in shared files
 
@@ -40,8 +41,9 @@ settings win over the settings of the own file.
 - **`just lint`** runs the `lint` of each language of the project. In a
   project that has only Python, it is the same as `just python lint`.
 - **`just verify`** runs every installed check of each language, then `git
-  diff --check`. For Python, the checks are `fmt --check`, `lint`, `test`
-  and `typecheck`, for each tool that is installed.
+  diff --check`. For Python, the checks are `fmt-check`, `lint`, `test`,
+  `coverage-check`, `docstring-check` and `typecheck`, for each tool that is
+  installed.
 - **With more than one language**, a combined recipe such as `just test x`
   gives the same arguments to each language. To give arguments to one
   language, run `just python test x`.
@@ -59,6 +61,27 @@ module only, so it runs `just python NAME`.
 - **`.agents/config/python/`** holds the own files, such as `ruff.toml`. The
   installer writes them. Do not edit them. Put a setting of yours in
   `ruff.toml`, where it wins.
+
+## The steps of `just check`
+
+- **`fmt-check`** fails when ruff would change the format of a file. It
+  changes no file. Run `just fmt` to fix it.
+- **`coverage-check`** fails on each changed line of code that no test runs.
+  On the first commit, it fails on each line of code that no test runs.
+  - A line with `# pragma: no cover` counts as run. The `test-review` target
+    judges each new pragma.
+  - A changed file that no test imports fails.
+  - It reads the report that `test` wrote in the same run of `just check`.
+    Otherwise it runs the tests first.
+  - The test files, `.agents`, `.claude` and `.codex` do not count. Nor do
+    the files that `.agents/generated.txt` or `.agents/coverage-exclude.txt`
+    of the parent commit names. The config of coverage.py comes from the
+    commit itself, so `test-review` judges each change to it.
+- **`docstring-check`** fails on each module, class, function or method with
+  no docstring, public or private. It names the file and the line. A magic
+  method, such as `__repr__`, `__init__`, an `@overload` stub, a property
+  setter and a property deleter do not count. The files that
+  `.agents/generated.txt` of the parent commit names do not count.
 
 ## Rules for agents
 
