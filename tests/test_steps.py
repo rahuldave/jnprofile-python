@@ -42,8 +42,12 @@ def load_steps():
     return module
 
 
-@unittest.skipUnless(shutil.which("just") and shutil.which("uv") and shutil.which("git"), "needs just, uv and git")
-class StepTests(unittest.TestCase):
+TOOLS = shutil.which("just") and shutil.which("uv") and shutil.which("git")
+
+
+class ProjectCase(unittest.TestCase):
+    """A Python project in a temporary folder, with the recipe files of the profile and a git repository."""
+
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
@@ -79,6 +83,9 @@ class StepTests(unittest.TestCase):
         run = subprocess.run(["just", *args], cwd=self.root, capture_output=True, text=True, env=env or self.env)
         return run.returncode, run.stdout + run.stderr
 
+
+@unittest.skipUnless(TOOLS, "needs just, uv and git")
+class StepTests(ProjectCase):
     def test_an_untested_changed_line_fails_and_a_pragma_makes_it_pass(self) -> None:
         self.commit()
         self.write("m.py", CODE + UNTESTED)
@@ -181,11 +188,11 @@ class StepTests(unittest.TestCase):
         self.assertIn("the tests of this run, run-1, wrote the report, so they do not run again", out)
         # Another run, or a change to the tree, runs the tests again.
         code, out = self.just("python::coverage-check", env=dict(self.env, JLOG_RUN="run-2"))
-        self.assertIn("no report of this run and this tree, so the tests run now", out)
+        self.assertIn("no report of the tests of this run and this tree, so they run now", out)
         self.just("python::test", env=env)
         self.write("m.py", CODE + "\n")
         code, out = self.just("python::coverage-check", env=env)
-        self.assertIn("no report of this run and this tree, so the tests run now", out)
+        self.assertIn("no report of the tests of this run and this tree, so they run now", out)
 
     def test_docstring_check_names_a_private_function_with_no_docstring(self) -> None:
         self.write("m.py", CODE + "\n\ndef _helper():\n    return 0\n\n\nclass K:\n    def __repr__(self):\n"
@@ -227,7 +234,88 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(tools["lint"]["verify"], ["fmt-check", "lint"])
         self.assertEqual(tools["test"]["verify"], ["test", "coverage-check"])
         self.assertEqual(tools["docstring"]["verify"], ["docstring-check"])
-        self.assertIn(".jnprofile-python/", tools["test"]["lines"][".gitignore"])
+        self.assertEqual(tools["integration"]["verify"], ["integration"])
+        self.assertEqual(tools["api"]["verify"], ["api-check"])
+        for name in ("test", "integration", "api"):
+            self.assertIn(".jnprofile-python/", tools[name]["lines"][".gitignore"])
+
+    def test_the_api_tool_is_on_by_default_and_integration_is_not(self) -> None:
+        profile = json.loads((REPO / "profile.json").read_text())
+        self.assertIn("api", profile["default_tools"])
+        self.assertNotIn("integration", profile["default_tools"])
+
+    def test_the_profile_defines_no_step_of_a_role(self) -> None:
+        # The installer stops when a role file and a profile define one step, so docs-check and prose-check stay with
+        # the docs and prose roles.
+        for path in FOLDER.glob("*.just"):
+            names = {line.split(":")[0].split()[0] for line in path.read_text().splitlines()
+                     if line and line[0].isalpha() and ":" in line and ":=" not in line}
+            self.assertFalse(names & {"docs-check", "prose-check"}, path.name)
+
+    @unittest.skipUnless(shutil.which("just"), "needs just")
+    def test_no_step_is_a_shebang_recipe(self) -> None:
+        steps = ("fmt-check", "lint", "typecheck", "test", "integration", "coverage-check", "docstring-check",
+                 "docs-check", "prose-check", "diff-check")
+        with tempfile.TemporaryDirectory() as temp:
+            shutil.copytree(FOLDER, Path(temp) / "python")
+            imports = "".join(f"import '{path.relative_to(FOLDER.parent)}'\n" for path in sorted(FOLDER.glob("*.just")))
+            (Path(temp) / "python.just").write_text("set positional-arguments\n" + imports)
+            dump = json.loads(subprocess.run(["just", "--justfile", str(Path(temp) / "python.just"), "--dump",
+                                              "--dump-format", "json"], check=True, capture_output=True,
+                                             text=True).stdout)
+        recipes = dump["recipes"]
+        self.assertTrue({"test", "coverage-check", "integration", "docstring-check"} <= set(recipes))
+        for name in steps:
+            if name in recipes:
+                self.assertFalse(recipes[name]["shebang"], name)
+                self.assertFalse(any(line and isinstance(line[0], str) and line[0].lstrip("@").startswith("-")
+                                     for line in recipes[name]["body"]), name)
+
+    def test_the_messages_of_the_prose_run_name_api_prose_check(self) -> None:
+        steps = load_steps()
+        self.assertEqual(steps.recipe_of("prose"), "api-prose-check")
+        self.assertEqual(steps.recipe_of("integration"), "integration")
+
+    def test_the_tools_page_says_the_pythonpath_part_under_the_test_tool(self) -> None:
+        section = None
+        for line in (REPO / "docs/tools.md").read_text().splitlines():
+            section = line[3:] if line.startswith("## ") else section
+            if "pythonpath" in line:
+                self.assertEqual(section, "test", line)
+
+    def test_the_name_of_the_project_comes_from_pyproject(self) -> None:
+        steps = load_steps()
+        cases = {'[project]\nname = "My.App-x"\n': "my_app_x",
+                 '[project]\n  name = "app"\n': "app",
+                 '[project]\ndescription = """\n[not a table]\n"""\nname = "app"\n': "app",
+                 '[tool.poetry]\nname = "poet"\n': "poet",
+                 '[tool.ruff]\nline-length = 1\n': None,
+                 'project = "x"\n': None,
+                 '[tool]\npoetry = "x"\n': None}
+        with tempfile.TemporaryDirectory() as temp:
+            here = os.getcwd()
+            os.chdir(temp)
+            try:
+                for text, want in cases.items():
+                    Path("pyproject.toml").write_text(text)
+                    self.assertEqual(steps.project_name(), want, text)
+            finally:
+                os.chdir(here)
+
+    def test_the_union_of_two_reports_counts_a_line_that_one_report_runs(self) -> None:
+        steps = load_steps()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(os.path.realpath(temp))
+            (root / "m.py").write_text("a = 1\nb = 2\nc = 3\n")
+            for name, hits in (("one.xml", "110"), ("two.xml", "010")):
+                lines = "".join(f'<line number="{i + 1}" hits="{h}"/>' for i, h in enumerate(hits))
+                (root / name).write_text(f'<coverage><sources><source>{root}</source></sources><packages><package>'
+                                         f'<classes><class filename="m.py"><lines>{lines}</lines></class></classes>'
+                                         '</package></packages></coverage>')
+            tree = steps.union([root / "one.xml", root / "two.xml"], root)
+        hits = {int(line.get("number")): int(line.get("hits")) for line in tree.iter("line")}
+        self.assertEqual(hits, {1: 1, 2: 1, 3: 0})
+        self.assertEqual(steps.missed_lines(tree, root, {"m.py"}), ["m.py:3: no test runs this line"])
 
 
 if __name__ == "__main__":

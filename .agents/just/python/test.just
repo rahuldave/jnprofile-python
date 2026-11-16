@@ -2,19 +2,24 @@
 # installs this file.
 
 # Run the tests with coverage, into .jnprofile-python/coverage.xml. Extra arguments go to pytest: just test tests/unit.
-# Alone, a project with no tests yet passes, and the run saves JLOG_RUN for coverage-check
+# Alone, a project with no tests yet passes, and the run saves JLOG_RUN for coverage-check. The integration tests in
+# tests/integration run here only without the integration tool, which runs them
 test *args:
-    {{python_run}} {{python_steps}} begin "$@"
+    {{python_run}} {{python_steps}} begin test "$@"
     just --justfile {{quote(module_file())}} _pytest test "$@"
-    {{python_run}} {{python_steps}} stamp
+    {{python_run}} {{python_steps}} stamp test
 
 # Fail on each changed line of code that no test runs, and on the first commit on each line. It reads the report of
-# test only from the same run of just, JLOG_RUN, and the same tree. Otherwise it runs the tests first
+# test only from the same run of just, JLOG_RUN, and the same tree. Otherwise it runs the tests first. When the key
+# steps of .agents/stack.json has integration and the integration tool is there, a line that only the integration
+# tests run counts as run, and it runs them too when their report is not from this run
 coverage-check:
-    {{python_run}} {{python_steps}} fresh || just --justfile {{quote(module_file())}} test
-    {{python_run}} {{python_steps}} coverage
+    {{python_run}} {{python_steps}} fresh test {{quote(module_file())}} || just --justfile {{quote(module_file())}} test
+    {{python_run}} {{python_steps}} fresh integration {{quote(module_file())}} || just --justfile {{quote(module_file())}} integration
+    {{python_run}} {{python_steps}} coverage {{quote(module_file())}}
 
-# Run the tests, and show which lines they ran. Alone, a project with no tests yet passes, as for just test
+# Run the tests, and show which lines they ran. Alone, a project with no tests yet passes, as for just test. The
+# integration tests do not run
 cov *args:
     just --justfile {{quote(module_file())}} _pytest cov "$@"
 
@@ -48,30 +53,3 @@ test-paths *files:
         4) grep -q 'ImportError while loading conftest' "$tmp/out" && exit 1; exit 2 ;;
         *) exit 2 ;;
     esac
-
-# pytest for test and cov, with coverage: test writes the report for coverage-check, and cov shows it. test is a
-# step of just check, and jlog logs only the lines of a recipe with no shebang line, so test runs this script in one
-# line, through just. module_file() is the file of this module, and
-# just runs it in the folder of the project, so the line works also when another Justfile loads this project.
-# pytest exits 5 when no test runs. With arguments that is a miss, and it fails. With none, it passes only when pytest
-# finds no test file at all: with addopts and PYTEST_ADDOPTS off, and with its summary saying so, because a conftest
-# hook that removes every test also exits 5. A coverage gate such as fail_under still fails it.
-_pytest name *args:
-    #!/usr/bin/env sh
-    name="$1"; shift
-    if [ "$name" = cov ]; then
-        set -- --cov --cov-report=term-missing "$@"
-    else
-        # A data file of its own, which begin deletes, so an --cov-append of the project adds to no old run.
-        export COVERAGE_FILE=.jnprofile-python/.coverage
-        set -- --cov --cov-report=xml:.jnprofile-python/coverage.xml "$@"
-    fi
-    given=$(($# - 2))
-    uv run pytest "$@" && exit 0 || code=$?
-    if [ "$code" -eq 5 ] && [ "$given" -eq 0 ]; then
-        out=$(PYTEST_ADDOPTS= uv run pytest --collect-only -q -o addopts= 2>&1) || all=$?
-        if [ "${all:-0}" -eq 5 ] && printf '%s\n' "$out" | grep -q '^no tests collected in '; then
-            echo "just $name: no tests yet"; exit 0
-        fi
-    fi
-    exit "$code"
