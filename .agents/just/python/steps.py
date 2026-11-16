@@ -1,7 +1,7 @@
 """The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
 The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
-begin NAME ARG..., stamp NAME, api check, api prose and pages. NAME is test, integration or prose. begin, stamp and
+begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose. begin, stamp and
 fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root Justfile and to the
 worktree tree. So coverage-check reads the reports of test and integration only from the same run, and a check that
 two steps need runs once in a run. It needs Python 3.9 or later. The step
@@ -15,6 +15,7 @@ their patterns, as pathspecs with the magic word glob. Every path is relative to
 the project, which can be a subfolder of the git repository.
 """
 import ast
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -44,6 +45,11 @@ SMALLDOCS = 'smalldocs==0.5.5'
 DOCS_CONFIG = Path('docs/_smalldocs.yml')
 # The checker of nossaifd, which the prose role installs. api prose checks the API pages with it.
 PROSE_CHECKER = Path('.agents/skills/nossaifd/scripts/check.py')
+# The gate of nossaifd, which the prose role installs too. Its base_commit gives the base of api-prose-check in CI or
+# with --base, so that prose-check and api-prose-check compare with the same commit.
+PROSE_GATE = Path('.agents/skills/nossaifd/scripts/prose_gate.py')
+# The variables from which base_commit takes the base in CI.
+BASE_VARIABLES = ('CI', 'GITHUB_BASE_REF', 'GITHUB_REF', 'GITHUB_EVENT_NAME', 'GITHUB_EVENT_PATH')
 # A file at the top of the project that is a script, not a module of the API: an import would run it.
 SCRIPTS = ('setup.py',)
 
@@ -203,20 +209,33 @@ def pending_file(name):
     return WORK / ('run.pending' if name == 'test' else f'{name}-run.pending')
 
 
+def run_key(name, args):
+    """What else a run of NAME with ARGS depends on, beside the run ID and the tree, or None when such a run is not
+    saved. A run of test or integration with ARGS runs only some tests, so it is not saved. api-prose-check takes
+    --base REF, and in CI its base comes from the variables of CI, so these go into the key: a run with another
+    base runs again. The commit of HEAD goes in too: a base resolves against HEAD, so a run on another HEAD with the
+    same tree runs again."""
+    if name == 'prose':
+        head = git('rev-parse', '-q', '--verify', 'HEAD').stdout.strip()
+        return {'args': list(args), 'env': {key: os.environ.get(key, '') for key in BASE_VARIABLES}, 'head': head}
+    return None if args else {}
+
+
 def begin(name, args):
     """Save the run ID and the worktree tree before a run of NAME, test, integration or prose, in its pending file.
 
-    Only a run with no ARGS, inside a run of just that has JLOG_RUN, saves them. Any other run saves nothing, so the
-    next step runs it again. The old report goes, so a failed run leaves none. Returns the exit code, always 0.
+    Only a run inside a run of just that has JLOG_RUN, and with a key of run_key, saves them. Any other run saves
+    nothing, so the next step runs it again. The old report goes, so a failed run leaves none. Returns the exit
+    code, always 0.
     """
     WORK.mkdir(parents=True, exist_ok=True)
     for path in (run_file(name), pending_file(name), REPORTS[name], DATA.get(name)):
         if path is not None:
             path.unlink(missing_ok=True)
-    run = os.environ.get('JLOG_RUN', '')
-    tree = worktree_tree() if not args and run else None
+    run, key = os.environ.get('JLOG_RUN', ''), run_key(name, args)
+    tree = worktree_tree() if key is not None and run else None
     if tree:
-        pending_file(name).write_text(json.dumps({'run': run, 'tree': tree}) + '\n')
+        pending_file(name).write_text(json.dumps({'run': run, 'tree': tree, 'key': key}) + '\n')
     return 0
 
 
@@ -243,19 +262,21 @@ def stamp(name):
     return 0
 
 
-def same_run(name):
-    """The run ID when the last run of NAME that passed comes from this run of just, JLOG_RUN, and from the current
-    worktree tree, and the report that it wrote is still there. Otherwise None.
+def same_run(name, args=()):
+    """The run ID when the last run of NAME that passed comes from this run of just, JLOG_RUN, from the current
+    worktree tree and from the same key of run_key for ARGS, and the report that it wrote is still there. Otherwise
+    None.
 
     A person can set JLOG_RUN by hand, so the tree must match too. An old run of the same tree is a valid run.
     """
-    run = os.environ.get('JLOG_RUN', '')
+    run, key = os.environ.get('JLOG_RUN', ''), run_key(name, args)
     try:
         saved = json.loads(run_file(name).read_text())
     except (OSError, ValueError):
         saved = None
     report = REPORTS[name]
-    if (run and isinstance(saved, dict) and saved.get('run') == run
+    if (run and key is not None and isinstance(saved, dict) and saved.get('run') == run
+            and saved.get('key', {}) == key
             and (report is None or not saved.get('report', True) or report.is_file())
             and saved.get('tree') and saved['tree'] == worktree_tree()):
         return run
@@ -295,9 +316,9 @@ def fresh(name, module):
 
 
 def ran(name, args):
-    """True when NAME passed before in this run of just and on this tree, and ARGS is empty. So a check that two
-    steps of just check can need, such as integration or api-prose-check, runs once."""
-    run = None if args else same_run(name)
+    """True when NAME passed before in this run of just, on this tree and with the same key of run_key for ARGS. So
+    a check that two steps of just check can need, such as integration or api-prose-check, runs once."""
+    run = same_run(name, args)
     if run:
         print(f'{recipe_of(name)}: it passed before in this run, {run}, on this tree, so it does not run again')
     return bool(run)
@@ -540,13 +561,84 @@ def python_ok(asked):
     return 0
 
 
-def api(action):
+def ci_named():
+    """True when the variable CI is set to a value other than empty, false and 0. Only for the error of a missing
+    prose_gate.py: with prose_gate.py, its own ci_set decides."""
+    return os.environ.get('CI', '').strip().lower() not in ('', 'false', '0')
+
+
+def load_gate():
+    """The module prose_gate.py of the prose role, from the project, or None when the project does not have it."""
+    if not PROSE_GATE.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location('jnprofile_prose_gate', PROSE_GATE.resolve())
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def prose_base(option):
+    """The base of api-prose-check, as check-changed of nossaifd takes it, so that both check the same changes.
+
+    It is (None, None) with no option and no CI, for the changes since HEAD. Otherwise it is (commit, name), from
+    base_commit of prose_gate.py of the project: the merge base of the option --base REF and HEAD, or in CI the base
+    of the pull request or the push. On an error, it prints the message and gives (None, 2), so that no API page is
+    left out without a word. With no option and no CI, it does not load prose_gate.py, so a local run is as before.
+    """
+    if option is None and not ci_named():
+        return None, None
+    try:
+        gate = load_gate()
+    except Exception as exc:  # noqa: BLE001 - any failure of the import of another package is an error of the step
+        print(f'api-prose-check: {PROSE_GATE} cannot be loaded: {exc}', file=sys.stderr)
+        return None, 2
+    if gate is None or not hasattr(gate, 'base_commit') or not hasattr(gate, 'ci_set'):
+        print(f'api-prose-check: a base, from --base or from CI, needs base_commit of {PROSE_GATE}, and the project '
+              f'does not have it. Run just install to update the prose role', file=sys.stderr)
+        return None, 2
+    if option is None and not gate.ci_set():
+        return None, None
+    found = git('rev-parse', '--show-toplevel')
+    if found.returncode:
+        print(f'api-prose-check: git cannot find the top of the repository: {found.stderr.strip()}', file=sys.stderr)
+        return None, 2
+    try:
+        commit, name = gate.base_commit(Path(found.stdout.strip()), option)
+    except Exception as exc:  # noqa: BLE001 - a failure of base_commit of another package is an error of the step
+        print(f'api-prose-check: base_commit of {PROSE_GATE} failed: {exc!r}. Run just install to update the prose '
+              f'role', file=sys.stderr)
+        return None, 2
+    if commit is None:
+        print(f'api-prose-check: {name}', file=sys.stderr)
+        return None, 2
+    return commit, name
+
+
+def changed_since(base):
+    """The Python files that changed since the commit or tree BASE, in the commits and in the working tree, and the
+    untracked ones, relative to the current folder. Deleted files are left out. None on an error of git."""
+    tracked = git('diff', '-z', '--name-only', '--relative', '--no-renames', '--diff-filter=d', base, '--', '*.py')
+    untracked = git('ls-files', '-z', '--others', '--exclude-standard', '--', '*.py')
+    if tracked.returncode or untracked.returncode:
+        print(f'api-prose-check: git cannot list the changes since {base}: '
+              f'{(tracked.stderr or untracked.stderr).strip()}', file=sys.stderr)
+        return None
+    return sorted(set(filter(None, tracked.stdout.split('\0'))) | set(filter(None, untracked.stdout.split('\0'))))
+
+
+def api(action, option=None):
     """Run the api check: smalldocs api check with the settings of api_settings, for ACTION check. For ACTION prose,
-    check the API page of each changed module with the checker of nossaifd. Returns the exit code."""
+    check the API page of each changed module with the checker of nossaifd. A changed module changed since HEAD, or
+    since the base of prose_base, from OPTION, the value of --base, or from CI. Returns the exit code."""
     if action == 'prose' and not PROSE_CHECKER.is_file():
         print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The prose '
               f'role installs it')
         return 0
+    base = about_base = None
+    if action == 'prose':
+        base, about_base = prose_base(option)
+        if base is None and about_base is not None:
+            return about_base
     with tempfile.TemporaryDirectory() as temp:
         folder, about = api_settings(Path(temp))
         if folder is None:
@@ -567,13 +659,19 @@ def api(action):
                       f'of {DOCS_CONFIG} can name the packages to check', file=sys.stderr)
             return code
         excluded = listed(parent_list(GENERATED))
-        if has_parent():
+        if base is not None:
+            changed = changed_since(base)
+            if changed is None:
+                return 2
+            changed = sorted(set(changed) & set(code_files(excluded)))
+        elif has_parent():
             tracked, untracked = changed_code()
             changed = sorted(set(tracked + untracked) & set(code_files(excluded)))
         else:
             changed = code_files(excluded)
+        since = f'since {about_base}' if base is not None else 'since HEAD'
         if not changed:
-            print('api-prose-check: no changed code')
+            print(f'api-prose-check: no code changed {since}')
             return 0
         out = Path(temp) / 'pages'
         out.mkdir()
@@ -585,7 +683,8 @@ def api(action):
         if not pages:
             print('api-prose-check: no changed module has an API page')
             return 0
-        print(f'api-prose-check: the API pages of {", ".join(page.stem for page in pages)}', flush=True)
+        print(f'api-prose-check: the API pages of {", ".join(page.stem for page in pages)}, of the modules changed '
+              f'{since}', flush=True)
         code = subprocess.run(['uv', 'run', '--no-project', '--quiet', 'python', str(PROSE_CHECKER),
                                *map(str, pages)]).returncode
         if code:
@@ -614,6 +713,30 @@ def pages(folder, out, files):
     return 0
 
 
+def base_option(args):
+    """The REF of the arguments ARGS of api-prose-check, --base REF or --base=REF, or '' with no base. As in
+    check-changed of nossaifd, -v is taken and does nothing here, and the last --base counts. On an error, it prints
+    the message and gives the exit code 2."""
+    ref = ''
+    rest = list(args)
+    while rest:
+        arg = rest.pop(0)
+        if arg == '-v':
+            continue
+        if arg == '--base' and rest:
+            ref = rest.pop(0)
+        elif arg.startswith('--base='):
+            ref = arg[len('--base='):]
+        else:
+            print(f'api-prose-check: unknown arguments {" ".join(args)}. It takes only --base REF and -v',
+                  file=sys.stderr)
+            return 2
+        if not ref:
+            print('api-prose-check: --base needs a branch or a commit', file=sys.stderr)
+            return 2
+    return ref
+
+
 def main(argv):
     """Run the command of ARGV, as the docstring of the module lists them, and return its exit code."""
     if argv[:1] == ['coverage'] and len(argv) <= 2:
@@ -628,12 +751,15 @@ def main(argv):
         return begin(argv[1], argv[2:])
     if argv[:1] == ['stamp'] and len(argv) == 2 and argv[1] in REPORTS:
         return stamp(argv[1])
-    if argv[:1] == ['api'] and argv[1:] in (['check'], ['prose']):
-        return api(argv[1])
+    if argv == ['api', 'check']:
+        return api('check')
+    if argv[:2] == ['api', 'prose']:
+        option = base_option(argv[2:])
+        return option if isinstance(option, int) else api('prose', option or None)
     if argv[:1] == ['pages'] and len(argv) >= 3:
         return pages(argv[1], argv[2], argv[3:])
     print('usage: steps.py coverage [MODULE] | docs | fresh NAME MODULE | ran NAME [ARG...] | begin NAME [ARG...] | '
-          'stamp NAME | api check | api prose | pages FOLDER OUT [FILE...]',
+          'stamp NAME | api check | api prose [--base REF] | pages FOLDER OUT [FILE...]',
           file=sys.stderr)
     return 2
 

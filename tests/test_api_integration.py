@@ -1,6 +1,8 @@
 """Run the recipes of the integration and api tools with real just, uv, git, pytest and smalldocs."""
 
 import json
+import os
+from pathlib import Path
 import subprocess
 import unittest
 
@@ -264,6 +266,201 @@ class ApiTests(ProjectCase):
         """The output of git status, with the untracked files."""
         return subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=self.root,
                               capture_output=True, text=True).stdout
+
+
+# prose_gate.py of nossaifd, whose base_commit gives the base. JNPROFILE_PROSE_GATE names another copy; NOSSAIFD_GATE is the on-off switch of nossaifd.
+GATE = Path(os.environ.get("JNPROFILE_PROSE_GATE", Path.home() / "Projects/nossaifd/.agents/skills/nossaifd/scripts/prose_gate.py"))
+HAS_GATE = GATE.is_file() and "def base_commit(" in GATE.read_text()
+# A prose_gate.py from before nossaifd #17, with no base_commit.
+OLD_GATE = "def ci_set():\n    return True\n"
+# A small prose_gate.py with the interface of nossaifd: the merge base of --base, or in CI of origin/GITHUB_BASE_REF.
+# With it, the tests of the base run on a machine with no copy of nossaifd.
+FAKE_GATE = """import os, subprocess
+
+
+def ci_set():
+    return os.environ.get('CI', '') not in ('', 'false', '0')
+
+
+def base_commit(root, option):
+    ref = option or 'origin/' + os.environ.get('GITHUB_BASE_REF', '')
+    found = subprocess.run(['git', '-C', str(root), 'merge-base', ref, 'HEAD'], capture_output=True, text=True)
+    if found.returncode:
+        return None, f'the base {ref} does not resolve to a commit'
+    return found.stdout.strip(), f'the fake base {ref}'
+"""
+# A prose_gate.py whose base_commit takes other arguments.
+WRONG_GATE = "def ci_set():\n    return True\n\n\ndef base_commit(root):\n    return None, 'never'\n"
+# A prose_gate.py that fails on import.
+BROKEN_GATE = "raise RuntimeError('broken')\n"
+BAD = TYPED.replace('"""Add A and B."""', '"""Add A and B, basically."""')
+# The variables of CI that the steps read. The tests set them, so the CI of a machine does not change them.
+CI_VARIABLES = ("CI", "GITHUB_BASE_REF", "GITHUB_REF", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH")
+
+
+@unittest.skipUnless(TOOLS, "needs just, uv and git")
+class ProseBaseTests(ProjectCase):
+    """api-prose-check takes the base of check-changed of nossaifd: in CI, or with --base REF."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        for name in CI_VARIABLES:
+            self.env.pop(name, None)
+        self.write(".agents/just/python.just", FULL)
+        self.write("Justfile", ROOT)
+        text = (self.root / "pyproject.toml").read_text()
+        self.write("pyproject.toml", text.replace(">=3.9", ">=3.11").replace('name = "app"', 'name = "m"'))
+        subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
+        self.write("m.py", TYPED)
+        self.write("tests/test_m.py", TEST)
+        self.write(".agents/skills/nossaifd/scripts/check.py", CHECKER)
+        if HAS_GATE:
+            self.write(".agents/skills/nossaifd/scripts/prose_gate.py", GATE.read_text())
+        # main, with origin/main as a fake remote branch, then a branch that adds the package n with a bad docstring.
+        self.git("checkout", "-q", "-b", "main")
+        self.commit()
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("checkout", "-q", "-b", "feature")
+        self.write("n/__init__.py", BAD)
+        self.commit()
+
+    def ci(self, **more: str) -> dict:
+        """The environment of a pull request on GitHub into main."""
+        return {**self.env, "CI": "true", "GITHUB_BASE_REF": "main", "GITHUB_EVENT_NAME": "pull_request", **more}
+
+    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    def test_in_ci_a_bad_docstring_of_a_module_changed_since_the_merge_base_fails(self) -> None:
+        # The checkout is clean, so the changes since HEAD hold no module.
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("api-prose-check: no code changed since HEAD", out)
+        code, out = self.just("python::api-prose-check", env=self.ci())
+        self.assertEqual(code, 1, out)
+        self.assertIn("the modules changed since the merge base of origin/main and HEAD", out)
+        self.assertIn("n.md: 1 hard", out)
+        self.assertNotIn("m.md", out)
+
+    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    def test_with_base_a_bad_docstring_since_the_base_fails(self) -> None:
+        for args in (["--base", "main"], ["--base=main"]):
+            code, out = self.just("python::api-prose-check", *args)
+            self.assertEqual(code, 1, out)
+            self.assertIn("n.md: 1 hard", out)
+        # A change in the working tree counts too.
+        self.write("m.py", BAD)
+        code, out = self.just("python::api-prose-check", "--base", "main")
+        self.assertIn("m.md: 1 hard", out)
+
+    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    def test_a_base_that_does_not_resolve_fails_with_2(self) -> None:
+        code, out = self.just("python::api-prose-check", env=self.ci(GITHUB_BASE_REF="nope"))
+        self.assertEqual(code, 2, out)
+        self.assertIn("api-prose-check: the base origin/nope does not resolve to a commit", out)
+        code, out = self.just("python::api-prose-check", "--base", "nope")
+        self.assertEqual(code, 2, out)
+        self.assertIn("api-prose-check: the base nope does not resolve to a commit", out)
+
+    @unittest.skipUnless(HAS_GATE, "needs prose_gate.py of nossaifd with base_commit")
+    def test_a_run_with_another_base_runs_again(self) -> None:
+        env = dict(self.env, JLOG_RUN="run-1")
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertEqual(code, 0, out)
+        # The same call again in the same run does not run again.
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertIn("api-prose-check: it passed before in this run, run-1", out)
+        # The changes since HEAD passed, but a call with a base checks other changes, so it runs, and fails.
+        code, out = self.just("python::api-prose-check", "--base", "main", env=env)
+        self.assertEqual(code, 1, out)
+        self.assertNotIn("passed before", out)
+        code, out = self.just("python::api-prose-check", env=self.ci(JLOG_RUN="run-1"))
+        self.assertEqual(code, 1, out)
+        self.assertNotIn("passed before", out)
+
+    def test_an_old_prose_gate_with_no_base_commit_fails_in_ci_and_with_base(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", OLD_GATE)
+        self.commit()
+        for args, env in (([], self.ci()), (["--base", "main"], self.env)):
+            code, out = self.just("python::api-prose-check", *args, env=env)
+            self.assertEqual(code, 2, out)
+            self.assertIn("needs base_commit of .agents/skills/nossaifd/scripts/prose_gate.py", out)
+            self.assertIn("Run just install to update the prose role", out)
+            self.assertNotIn("no code changed", out)
+        # Without CI and without --base, nothing changes.
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("no code changed since HEAD", out)
+
+    def test_no_prose_gate_fails_in_ci(self) -> None:
+        (self.root / ".agents/skills/nossaifd/scripts/prose_gate.py").unlink(missing_ok=True)
+        self.commit()
+        code, out = self.just("python::api-prose-check", env=self.ci())
+        self.assertEqual(code, 2, out)
+        self.assertIn("needs base_commit", out)
+
+    def test_without_the_prose_role_it_still_passes_in_ci(self) -> None:
+        for name in ("check.py", "prose_gate.py"):
+            (self.root / ".agents/skills/nossaifd/scripts" / name).unlink(missing_ok=True)
+        code, out = self.just("python::api-prose-check", "--base", "main", env=self.ci())
+        self.assertEqual(code, 0, out)
+        self.assertIn("no checker of nossaifd", out)
+
+    def test_a_fake_gate_gives_the_base_in_ci_and_with_base(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", FAKE_GATE)
+        self.commit()
+        for args, env in (([], self.ci()), (["--base", "main"], self.env)):
+            code, out = self.just("python::api-prose-check", *args, env=env)
+            self.assertEqual(code, 1, out)
+            self.assertIn("the modules changed since the fake base", out)
+            self.assertIn("n.md: 1 hard", out)
+        code, out = self.just("python::api-prose-check", env=self.ci(GITHUB_BASE_REF="nope"))
+        self.assertEqual(code, 2, out)
+        self.assertIn("api-prose-check: the base origin/nope does not resolve to a commit", out)
+
+    def test_v_does_nothing_and_the_last_base_counts(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", FAKE_GATE)
+        self.commit()
+        for args in (["-v", "--base", "main"], ["--base", "nope", "--base=main"]):
+            code, out = self.just("python::api-prose-check", *args)
+            self.assertEqual(code, 1, (args, out))
+            self.assertIn("the fake base main", out)
+        code, out = self.just("python::api-prose-check", "-v")
+        self.assertEqual(code, 0, out)
+        self.assertIn("no code changed since HEAD", out)
+
+    def test_a_broken_prose_gate_changes_nothing_without_ci_and_without_base(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", BROKEN_GATE)
+        self.commit()
+        code, out = self.just("python::api-prose-check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("no code changed since HEAD", out)
+        code, out = self.just("python::api-prose-check", env=self.ci())
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot be loaded", out)
+
+    def test_a_base_commit_that_fails_gives_2(self) -> None:
+        self.write(".agents/skills/nossaifd/scripts/prose_gate.py", WRONG_GATE)
+        self.commit()
+        code, out = self.just("python::api-prose-check", env=self.ci())
+        self.assertEqual(code, 2, out)
+        self.assertIn("api-prose-check: base_commit of .agents/skills/nossaifd/scripts/prose_gate.py failed", out)
+        self.assertNotIn("Traceback", out)
+
+    def test_a_run_on_another_head_with_the_same_tree_runs_again(self) -> None:
+        env = dict(self.env, JLOG_RUN="run-1")
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertEqual(code, 0, out)
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertIn("passed before", out)
+        self.git("commit", "-q", "--allow-empty", "-m", "empty")
+        code, out = self.just("python::api-prose-check", env=env)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("passed before", out)
+
+    def test_an_unknown_argument_fails_with_2(self) -> None:
+        for args in (["--bse", "main"], ["--base"], ["--base="], ["main"]):
+            code, out = self.just("python::api-prose-check", *args)
+            self.assertEqual(code, 2, (args, out))
+            self.assertIn("api-prose-check:", out)
 
 
 if __name__ == "__main__":
