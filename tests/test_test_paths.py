@@ -7,7 +7,13 @@ import tempfile
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
-MODULE = REPO / ".agents/just/python/test.just"
+FOLDER = REPO / ".agents/just/python"
+# The module file as just install writes it, without the shell of jlog. test.just needs the variables of base.just.
+MODULE = """set positional-arguments
+set working-directory := '../..'
+import 'python/base.just'
+import 'python/test.just'
+"""
 PYPROJECT = """[project]
 name = "app"
 version = "0"
@@ -43,8 +49,10 @@ class TestPathsTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
         (root / ".agents/just/python").mkdir(parents=True)
-        shutil.copy(MODULE, root / ".agents/just/python/test.just")
-        (root / "Justfile").write_text('mod python ".agents/just/python/test.just"\n')
+        for name in ("base.just", "test.just", "steps.py"):
+            shutil.copy(FOLDER / name, root / ".agents/just/python" / name)
+        (root / ".agents/just/python.just").write_text(MODULE)
+        (root / "Justfile").write_text('mod python ".agents/just/python.just"\n')
         (root / "pyproject.toml").write_text(PYPROJECT.format(extra=extra))
         for name, text in FILES.items():
             (root / name).parent.mkdir(parents=True, exist_ok=True)

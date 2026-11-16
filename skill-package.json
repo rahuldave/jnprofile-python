@@ -10,7 +10,7 @@
     {"name": "python-profile", "path": ".agents/skills/python-profile"}
   ],
   "install_extras": {
-    "files": [".agents/just/python"]
+    "files": [".agents/just/python", ".agents/targets/python"]
   },
   "executables": {
     "required": [
