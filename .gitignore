@@ -1,2 +1,5 @@
 # The site that just docs builds
 docs/_site/
+
+# The bytecode that Python writes when the tests run
+__pycache__/
