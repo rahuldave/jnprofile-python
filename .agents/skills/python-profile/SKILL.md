@@ -16,10 +16,12 @@ packages of the tool to a dependency group in `pyproject.toml`, adds its parts t
 | none, always there | none | `setup` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
 | `lint` | ruff, in `lint` | `fmt`, `fmt-check`, `lint` | `ruff.toml` | `.ruff_cache/` |
 | `test` | pytest, pytest-cov, in `test` | `test`, `coverage-check`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/`, `.jnprofile-python/` |
+| `integration` | pytest, pytest-cov, in `test` | `integration` | none | as for `test` |
 | `docstring` | none; uv runs interrogate | `docstring-check` | none | none |
+| `api` | none; uv runs smalldocs | `api-check`, `api-prose-check` | none | `.jnprofile-python/` |
 | `typecheck` | ty, in `lint` | `typecheck` | `ty.toml` | none |
 
-The default tools are `lint`, `test` and `docstring`.
+The default tools are `lint`, `test`, `docstring` and `api`.
 
 ## Parts in shared files
 
@@ -42,8 +44,8 @@ settings win over the settings of the own file.
   project that has only Python, it is the same as `just python lint`.
 - **`just verify`** runs every installed check of each language, then `git
   diff --check`. For Python, the checks are `fmt-check`, `lint`, `test`,
-  `coverage-check`, `docstring-check` and `typecheck`, for each tool that is
-  installed.
+  `coverage-check`, `integration`, `docstring-check`, `api-check` and
+  `typecheck`, for each tool that is installed.
 - **With more than one language**, a combined recipe such as `just test x`
   gives the same arguments to each language. To give arguments to one
   language, run `just python test x`.
@@ -73,6 +75,10 @@ module only, so it runs `just python NAME`.
   - A changed file that no test imports fails.
   - It reads the report that `test` wrote in the same run of `just check`.
     Otherwise it runs the tests first.
+  - With the `integration` tool, and with `integration` in the key `steps`
+    of `.agents/stack.json`, a line that only the integration tests run
+    counts as run. Then it also runs `just integration` when that report is
+    not from the same run.
   - The test files, `.agents`, `.claude` and `.codex` do not count. Nor do
     the files that `.agents/generated.txt` or `.agents/coverage-exclude.txt`
     of the parent commit names. The config of coverage.py comes from the
@@ -81,7 +87,27 @@ module only, so it runs `just python NAME`.
   no docstring, public or private. It names the file and the line. A magic
   method, such as `__repr__`, `__init__`, an `@overload` stub, a property
   setter and a property deleter do not count. The files that
-  `.agents/generated.txt` of the parent commit names do not count.
+  `.agents/generated.txt` of the parent commit names do not count. When the
+  step `docs-check` does not run `api-check`, `docstring-check` runs it.
+- **`integration`** runs the tests in `tests/integration`. Then `just test` does not
+  run them. Put a test there when it needs a real service or a slow setup.
+- **`api-check`** fails on each function, method or class with no
+  docstring, no type, or no docment, the comment after a parameter or after
+  the return type. smalldocs checks private functions too. The step
+  `docs-check` of the docs role runs it. Its output names the module and the
+  function, as `m:sub(a): no docment`. Write the docment as a comment:
+
+  ```python
+  def add(
+      a: int,  # The first number
+      b: int,  # The second number
+  ) -> int:  # The sum
+      """Add A and B."""
+  ```
+
+- **`api-prose-check`** checks the API page of each changed module with the
+  checker of nossaifd. Fix a hard problem in the docstring that it comes
+  from.
 
 ## Rules for agents
 

@@ -167,12 +167,52 @@
         ]
       }
     },
+    "integration": {
+      "group": "test",
+      "packages": [
+        "pytest",
+        "pytest-cov"
+      ],
+      "recipes": "integration.just",
+      "verify": [
+        "integration"
+      ],
+      "lines": {
+        ".gitignore": [
+          ".pytest_cache/",
+          ".coverage",
+          "htmlcov/",
+          ".jnprofile-python/"
+        ],
+        ".worktreedisposable": [
+          ".pytest_cache/",
+          ".coverage",
+          "htmlcov/",
+          ".jnprofile-python/"
+        ]
+      }
+    },
     "docstring": {
       "packages": [],
       "recipes": "docstring.just",
       "verify": [
         "docstring-check"
       ]
+    },
+    "api": {
+      "packages": [],
+      "recipes": "api.just",
+      "verify": [
+        "api-check"
+      ],
+      "lines": {
+        ".gitignore": [
+          ".jnprofile-python/"
+        ],
+        ".worktreedisposable": [
+          ".jnprofile-python/"
+        ]
+      }
     },
     "typecheck": {
       "group": "lint",
@@ -200,6 +240,7 @@
   "default_tools": [
     "lint",
     "test",
-    "docstring"
+    "docstring",
+    "api"
   ]
 }

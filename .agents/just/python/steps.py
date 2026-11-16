@@ -1,10 +1,13 @@
-"""The helper of the steps of the python profile: coverage-check and docstring-check.
+"""The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
-The recipes in this folder run it with uv: python steps.py coverage, docs, fresh, begin ARG... and stamp. begin, stamp
-and fresh tie the coverage report to the run ID JLOG_RUN of the root Justfile and to the worktree tree, so that
-coverage-check reads the report of test only in the same run. It needs Python 3.9 or later. The step coverage-check
-also needs diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment of the project, with interrogate, so that
-it parses the code with the Python of the project.
+The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
+begin NAME ARG..., stamp NAME, hook ROOT MODULE STEP RECIPE, api check, api prose and pages. NAME is test,
+integration or api. begin, stamp and fresh tie a coverage report, or the pass of api-check, to the run ID JLOG_RUN of
+the root Justfile and to the worktree tree. So coverage-check reads the reports of test and integration only from
+the same run, and a check that two steps need runs once in a run. It needs Python 3.9 or later. The step
+coverage-check also needs diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment
+of the project, with interrogate, so that it parses the code with the Python of the project. pages runs there too,
+with smalldocs.
 
 The lists .agents/generated.txt and .agents/coverage-exclude.txt come from the parent commit, through
 git show HEAD:./PATH, so a commit cannot exempt its own code. With no parent, both lists are empty. git matches
@@ -15,6 +18,7 @@ import ast
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -29,10 +33,19 @@ TESTS = ('tests/**', '**/test_*.py', '**/*_test.py', '**/conftest.py')
 TOOL_FOLDERS = ('.agents/', '.claude/', '.codex/')
 WORK = Path('.jnprofile-python')
 REPORT = WORK / 'coverage.xml'
-# The data file of coverage.py for test, so that an --cov-append of the project adds to no old run.
-DATA = WORK / '.coverage'
-RUN = WORK / 'run.json'
-PENDING = WORK / 'run.pending'
+INTEGRATION = WORK / 'integration.xml'
+# The report of each kind of run that begin and stamp tie to a run of just. test and integration write a coverage
+# report. api-check writes none, so only its pass counts.
+REPORTS = {'test': REPORT, 'integration': INTEGRATION, 'api': None}
+# The data file of coverage.py for each run, so that an --cov-append of the project adds to no old run.
+DATA = {'test': WORK / '.coverage', 'integration': WORK / '.coverage-integration'}
+RECORD = Path('.agents/stack.json')
+SMALLDOCS = 'smalldocs==0.5.5'
+DOCS_CONFIG = Path('docs/_smalldocs.yml')
+# The checker of nossaifd, which the prose role installs. api prose checks the API pages with it.
+PROSE_CHECKER = Path('.agents/skills/nossaifd/scripts/check.py')
+# A file at the top of the project that is a script, not a module of the API: an import would run it.
+SCRIPTS = ('setup.py',)
 
 
 def git(*args):
@@ -175,66 +188,162 @@ def worktree_tree():
         Path(str(index) + '.lock').unlink(missing_ok=True)
 
 
-def begin(args):
-    """Save the run ID and the worktree tree before a run of the tests, in .jnprofile-python/run.pending.
+def run_file(name):
+    """The file that holds the run ID and the tree of the last run of NAME that passed."""
+    return WORK / ('run.json' if name == 'test' else f'{name}-run.json')
 
-    Only a run of all the tests, with no ARGS, inside a run of just that has JLOG_RUN saves them. Any other run
-    saves nothing, so coverage-check runs the tests again. The old report goes, so a failed run leaves none. Returns
-    the exit code, always 0.
+
+def pending_file(name):
+    """The file that holds the run ID and the tree of the run of NAME that is going on."""
+    return WORK / ('run.pending' if name == 'test' else f'{name}-run.pending')
+
+
+def begin(name, args):
+    """Save the run ID and the worktree tree before a run of NAME, test, integration or api, in its pending file.
+
+    Only a run with no ARGS, inside a run of just that has JLOG_RUN, saves them. Any other run saves nothing, so the
+    next step runs it again. The old report goes, so a failed run leaves none. Returns the exit code, always 0.
     """
-    for path in (RUN, PENDING, REPORT, DATA):
-        path.unlink(missing_ok=True)
+    WORK.mkdir(parents=True, exist_ok=True)
+    for path in (run_file(name), pending_file(name), REPORTS[name], DATA.get(name)):
+        if path is not None:
+            path.unlink(missing_ok=True)
     run = os.environ.get('JLOG_RUN', '')
     tree = worktree_tree() if not args and run else None
     if tree:
-        PENDING.write_text(json.dumps({'run': run, 'tree': tree}) + '\n')
+        pending_file(name).write_text(json.dumps({'run': run, 'tree': tree}) + '\n')
     return 0
 
 
-def stamp():
-    """After the tests passed, keep the saved run as .jnprofile-python/run.json when the tree did not change.
+def stamp(name):
+    """After the run of NAME passed, keep the saved run as its run file when the tree did not change.
 
-    A change to a file while the tests ran means that the report may come from the old code, so the run is dropped.
+    A change to a file during the run means that the report may come from the old code, so the run is dropped.
     Returns the exit code, always 0.
     """
     try:
-        saved = json.loads(PENDING.read_text())
+        saved = json.loads(pending_file(name).read_text())
     except (OSError, ValueError):
         return 0
     finally:
-        PENDING.unlink(missing_ok=True)
+        pending_file(name).unlink(missing_ok=True)
     if isinstance(saved, dict) and saved.get('tree') and saved['tree'] == worktree_tree():
-        RUN.write_text(json.dumps(saved) + '\n')
+        # A run with no test passes and writes no report. It still counts as run, with no report.
+        report = REPORTS[name]
+        saved['report'] = report is not None and report.is_file()
+        run_file(name).write_text(json.dumps(saved) + '\n')
     else:
-        print('test: a file changed while the tests ran, so coverage-check runs them again', file=sys.stderr)
+        print(f'{name}: a file changed during the run, so the next step that needs it runs it again', file=sys.stderr)
     return 0
 
 
-def fresh():
-    """True when the report of the tests comes from this run of just, JLOG_RUN, and from the current worktree tree.
+def same_run(name):
+    """The run ID when the last run of NAME that passed comes from this run of just, JLOG_RUN, and from the current
+    worktree tree, and the report that it wrote is still there. Otherwise None.
 
     A person can set JLOG_RUN by hand, so the tree must match too. An old run of the same tree is a valid run.
     """
     run = os.environ.get('JLOG_RUN', '')
     try:
-        saved = json.loads(RUN.read_text())
+        saved = json.loads(run_file(name).read_text())
     except (OSError, ValueError):
         saved = None
-    if (run and isinstance(saved, dict) and saved.get('run') == run and REPORT.is_file()
+    report = REPORTS[name]
+    if (run and isinstance(saved, dict) and saved.get('run') == run
+            and (report is None or not saved.get('report', True) or report.is_file())
             and saved.get('tree') and saved['tree'] == worktree_tree()):
-        print(f'coverage-check: the tests of this run, {run}, wrote the report, so they do not run again')
+        return run
+    return None
+
+
+def recipes_of(justfile):
+    """The names of the public recipes of JUSTFILE, as just --summary gives them, or an empty set on an error."""
+    run = subprocess.run(['just', '--justfile', str(justfile), '--summary'], capture_output=True, text=True)
+    return set(run.stdout.split()) if run.returncode == 0 else set()
+
+
+def integration_counts(module):
+    """True when the report of integration counts for coverage-check. The module MODULE must have the recipe
+    integration, and the key steps of .agents/stack.json must name it, so that just check runs it."""
+    try:
+        steps = json.loads(RECORD.read_text()).get('steps')
+    except (OSError, ValueError, AttributeError):
+        steps = None
+    return isinstance(steps, list) and 'integration' in steps and 'integration' in recipes_of(module)
+
+
+def fresh(name, module):
+    """True when the run of NAME in this run of just and on this tree wrote the report that coverage-check reads.
+
+    For integration, it is also True when its report does not count, so that coverage-check does not run it.
+    """
+    if name == 'integration' and not integration_counts(module):
         return True
-    print('coverage-check: no report of this run and this tree, so the tests run now', flush=True)
+    run = same_run(name)
+    what = 'tests' if name == 'test' else 'integration tests'
+    if run:
+        print(f'coverage-check: the {what} of this run, {run}, wrote the report, so they do not run again')
+        return True
+    print(f'coverage-check: no report of the {what} of this run and this tree, so they run now', flush=True)
     return False
 
 
-def coverage():
+def ran(name, args):
+    """True when NAME passed before in this run of just and on this tree, and ARGS is empty. So a check that two
+    steps of just check need, such as integration or api-check, runs once."""
+    run = None if args else same_run(name)
+    if run:
+        print(f'{name}: it passed before in this run, {run}, on this tree, so it does not run again')
+    return bool(run)
+
+
+def line_hits(paths, root):
+    """The hits of each line in the Cobertura reports PATHS, as a map from the path of a file, relative to ROOT, to a
+    map from a line number to its hits. A line that one report runs counts as run."""
+    files = {}
+    for path in paths:
+        tree = ElementTree.parse(path)
+        for element, name in report_files(tree, root).items():
+            if name is None:
+                continue
+            lines = files.setdefault(name, {})
+            for line in element.iter('line'):
+                try:
+                    number, hits = int(line.get('number')), int(line.get('hits') or 0)
+                except ValueError:
+                    continue
+                lines[number] = max(lines.get(number, 0), hits)
+    return files
+
+
+def union(paths, root):
+    """One Cobertura report, as an ElementTree, with the lines of each file in the reports PATHS. Its one source is
+    ROOT, and the name of each file is relative to it."""
+    coverage = ElementTree.Element('coverage', version='0', timestamp='0')
+    sources = ElementTree.SubElement(coverage, 'sources')
+    ElementTree.SubElement(sources, 'source').text = str(root)
+    classes = ElementTree.SubElement(ElementTree.SubElement(ElementTree.SubElement(coverage, 'packages'), 'package',
+                                                            name='.'), 'classes')
+    for name, lines in sorted(line_hits(paths, root).items()):
+        run = sum(1 for hits in lines.values() if hits)
+        element = ElementTree.SubElement(classes, 'class', name=name, filename=name,
+                                         **{'line-rate': str(run / len(lines) if lines else 1), 'branch-rate': '0'})
+        ElementTree.SubElement(element, 'methods')
+        body = ElementTree.SubElement(element, 'lines')
+        for number, hits in sorted(lines.items()):
+            ElementTree.SubElement(body, 'line', number=str(number), hits=str(hits))
+    return ElementTree.ElementTree(coverage)
+
+
+def coverage(module=None):
     """Fail on each changed line of code that the tests do not run, as diff-cover against HEAD finds it.
 
-    The files of generated.txt and coverage-exclude.txt of the parent commit do not count, and nor do the test files.
-    A line with # pragma: no cover is not in the report, so it counts as run. On the first commit, every line of code
-    must run, a limit of 100%. A changed file that is not in the report fails too, because no test imports it.
-    Returns the exit code.
+    The report is the one of test. When integration counts, as integration_counts of MODULE says, it is the union of
+    the reports of test and integration, so a line that only integration runs counts as run. The files of
+    generated.txt and coverage-exclude.txt of the parent commit do not count, and nor do the test files. A line with
+    # pragma: no cover is not in the report, so it counts as run. On the first commit, every line of code must run, a
+    limit of 100%. A changed file that is not in the report fails too, because no test imports it. Returns the exit
+    code.
     """
     root = top()
     excluded = listed(parent_list(GENERATED) + parent_list(COVERAGE_EXCLUDE))
@@ -249,11 +358,13 @@ def coverage():
     if not changed:
         print('coverage-check: no changed code')
         return 0
-    if not REPORT.is_file():
-        print(f'coverage-check: there is no coverage report {REPORT}, so write tests and run just test',
-              file=sys.stderr)
+    names = [REPORT] + ([INTEGRATION] if module and integration_counts(module) else [])
+    reports = [path for path in names if path.is_file()]
+    if not reports:
+        print(f'coverage-check: there is no coverage report {" or ".join(map(str, names))}, so write tests and run '
+              f'just test', file=sys.stderr)
         return 1
-    tree = ElementTree.parse(REPORT)
+    tree = union(reports, root)
     kept = filter_report(tree, root, wanted)
     code = 0
     if tracked:
@@ -331,19 +442,257 @@ def docs():
     return 0
 
 
+def runs_recipe(root, step, recipe):
+    """True when the recipe STEP of the Justfile ROOT runs RECIPE: a line of it that is not a comment runs just with
+    RECIPE as a word, outside quotes, after it. A line that only names it, as echo "run just api-check", does not count.
+
+    The docs role of jnterfaces writes docs-check so that it runs the api-check of each language.
+    """
+    run = subprocess.run(['just', '--justfile', str(root), '--show', step], capture_output=True, text=True)
+    return run.returncode == 0 and runs_in(run.stdout, recipe)
+
+
+def runs_in(text, recipe):
+    """True when a line of the recipe TEXT, as just --show prints it, runs just with RECIPE, as runs_recipe says."""
+    # The options that choose the Justfile. Any other option, such as --dry-run or --show, runs no recipe.
+    with_value = {'--justfile', '-f', '--working-directory', '-d'}
+    for line in text.splitlines():
+        if line.lstrip().startswith('#'):
+            continue
+        # The text inside quotes is a message or a pattern, not a command. A separator ends a command.
+        bare = re.sub(r'"[^"]*"|\'[^\']*\'', '""', line)
+        # An interpolation of just, as {{ quote(justfile()) }}, is one word.
+        bare = re.sub(r'\{\{.*?\}\}', 'WORD', bare)
+        for command in re.split(r'[;&|()`]|\$\(', bare):
+            words = command.split()
+            # A keyword of the shell, as in if ...; then just api-check; fi, comes before the command.
+            while words and words[0] in ('then', 'do', 'else', 'if', '!', 'exec', 'command'):
+                words = words[1:]
+            if not words or words[0].lstrip('@') != 'just':
+                continue
+            rest, index = words[1:], 0
+            while index < len(rest):
+                word = rest[index]
+                if word in with_value:
+                    index += 2
+                    continue
+                if word.split('=')[0] in with_value:
+                    index += 1
+                    continue
+                if word.startswith('-'):
+                    break
+                if word == recipe or word.endswith('::' + recipe):
+                    return True
+                index += 1
+    return False
+
+
+def hook(root, module, step, recipe):
+    """Run RECIPE of the module MODULE when the module has it and the step STEP of the Justfile ROOT does not run it.
+
+    So the check runs once in just check: in STEP when a role fills STEP with a recipe that runs it, and otherwise in
+    the step of the profile that calls hook. Returns the exit code.
+    """
+    if recipe not in recipes_of(module):
+        return 0
+    if runs_recipe(root, step, recipe):
+        print(f'{recipe}: the step {step} runs it')
+        return 0
+    print(f'{recipe}: the step {step} does not run it, so it runs now', flush=True)
+    # The recipe runs through the module, so it learns the Justfile of the project from this variable.
+    env = dict(os.environ, JNPROFILE_PYTHON_ROOT=os.path.realpath(root))
+    return subprocess.run(['just', '--justfile', str(module), recipe], env=env).returncode
+
+
+def project_name():
+    """The name of the project in pyproject.toml, as a Python name: my-app gives my_app. None when there is none."""
+    try:
+        text = Path('pyproject.toml').read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+    try:
+        import tomllib
+    except ImportError:
+        # Python 3.10 or older has no tomllib, so a regular expression reads the table instead.
+        table = re.search(r'^\s*\[project\]\s*$(.*?)(?=^\s*\[|\Z)', text, re.MULTILINE | re.DOTALL)
+        found = table and re.search(r'^\s*name\s*=\s*["\']([^"\']+)["\']', table.group(1), re.MULTILINE)
+        name = found.group(1) if found else None
+    else:
+        try:
+            data = tomllib.loads(text)
+        except ValueError:
+            return None
+        table = lambda value: value if isinstance(value, dict) else {}
+        name = table(data.get('project')).get('name') or table(table(data.get('tool')).get('poetry')).get('name')
+    return re.sub(r'[-.]+', '_', name).lower() if isinstance(name, str) and name else None
+
+
+def top_names(excluded):
+    """The packages at the top of the project or of src/, which the API pages document, and the module of the name
+    of the project. A package is a folder with an __init__.py of code. Other modules at the top are often scripts,
+    such as noxfile.py, and an import would run them, so they are left out. The names that start with _ are private,
+    and EXCLUDED holds the files of generated.txt."""
+    files = set(code_files(excluded))
+    own = project_name()
+    names = set()
+    for path in files:
+        parts = Path(path).parts
+        if parts[0] == 'src':
+            parts = parts[1:]
+        if len(parts) == 2 and parts[1] == '__init__.py':
+            name = parts[0]
+        elif len(parts) == 1 and parts[0] == f'{own}.py' and parts[0] not in SCRIPTS:
+            name = own
+        else:
+            continue
+        if name.isidentifier() and not name.startswith('_'):
+            names.add(name)
+    return sorted(names)
+
+
+def api_settings(folder):
+    """The folder of the smalldocs config that api-check uses, and a note. It is docs/ when docs/_smalldocs.yml has
+    the key api. Otherwise it is FOLDER, with a config of the packages and modules that top_names finds. With no
+    package and no module, it is None."""
+    try:
+        text = DOCS_CONFIG.read_text()
+    except (OSError, UnicodeDecodeError):
+        text = ''
+    if re.search(r'^api\s*:', text, re.MULTILINE):
+        return DOCS_CONFIG.parent, f'the api settings of {DOCS_CONFIG}'
+    names = top_names(listed(parent_list(GENERATED)))
+    if not names:
+        return None, ('no package at the top of the project or in src/, and no module with the name of the project. '
+                      f'The key api of {DOCS_CONFIG} can name the packages')
+    (folder / '_smalldocs.yml').write_text('api:\n  packages: ' + json.dumps(names) + '\n  root: '
+                                           + json.dumps(str(top())) + '\n')
+    return folder, f'the packages and modules {", ".join(names)}'
+
+
+def smalldocs(*args):
+    """The command that runs smalldocs with ARGS in the environment of the project, so that it can import the code."""
+    return ['uv', 'run', '--quiet', '--with', SMALLDOCS, *args]
+
+
+def python_ok(asked):
+    """The exit code when the Python of the project cannot run smalldocs, which needs 3.11 or later, or None when it
+    can. The code is 1 when the project ASKED for the check, with the key api of docs/_smalldocs.yml. Otherwise the
+    check passes with a note, so that a project on an older Python is not stopped by a default tool."""
+    run = subprocess.run(['uv', 'run', '--quiet', 'python', '-c',
+                          'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))'],
+                         capture_output=True, text=True)
+    if not run.returncode:
+        return None
+    found = run.stdout.strip()
+    if not found:
+        print(f'api-check: uv cannot run the Python of the project: {run.stderr.strip()}', file=sys.stderr)
+        return 1
+    note = (f'smalldocs needs Python 3.11 or later, and the project has {found}. Raise requires-python in '
+            f'pyproject.toml, or take the tool out with just uninstall api')
+    if asked:
+        print(f'api-check: {note}', file=sys.stderr)
+        return 1
+    print(f'api-check: the API is not checked: {note}')
+    return 0
+
+
+def api(action):
+    """Run the api check: smalldocs api check with the settings of api_settings, for ACTION check. For ACTION prose,
+    check the API page of each changed module with the checker of nossaifd. Returns the exit code."""
+    if action == 'prose' and not PROSE_CHECKER.is_file():
+        print(f'api-prose-check: no checker of nossaifd at {PROSE_CHECKER}, so the API pages are not checked. The prose '
+              f'role installs it')
+        return 0
+    with tempfile.TemporaryDirectory() as temp:
+        folder, about = api_settings(Path(temp))
+        if folder is None:
+            print(f'{"api-check" if action == "check" else "api-prose-check"}: {about}, so there is no API to check')
+            return 0
+        code = python_ok(folder == DOCS_CONFIG.parent)
+        if code is not None:
+            return code
+        if action == 'check':
+            print(f'api-check: smalldocs api check, with {about}', flush=True)
+            code = subprocess.run(smalldocs('smalldocs', 'api', 'check', '--dir', str(folder))).returncode
+            if code == 1:
+                print('api-check: give each function, method and class a docstring, a type for each parameter and '
+                      'for the return, and a docment: a comment after each parameter and after the return type',
+                      file=sys.stderr)
+            elif code:
+                print(f'api-check: smalldocs cannot read the API, for example because an import failed. The key api '
+                      f'of {DOCS_CONFIG} can name the packages to check', file=sys.stderr)
+            return code
+        excluded = listed(parent_list(GENERATED))
+        if has_parent():
+            tracked, untracked = changed_code()
+            changed = sorted(set(tracked + untracked) & set(code_files(excluded)))
+        else:
+            changed = code_files(excluded)
+        if not changed:
+            print('api-prose-check: no changed code')
+            return 0
+        out = Path(temp) / 'pages'
+        out.mkdir()
+        code = subprocess.run(smalldocs('python', str(Path(__file__).resolve()), 'pages', str(folder), str(out),
+                                        *changed)).returncode
+        if code:
+            return code
+        pages = sorted(out.glob('*.md'))
+        if not pages:
+            print('api-prose-check: no changed module has an API page')
+            return 0
+        print(f'api-prose-check: the API pages of {", ".join(page.stem for page in pages)}', flush=True)
+        code = subprocess.run(['uv', 'run', '--no-project', '--quiet', 'python', str(PROSE_CHECKER),
+                               *map(str, pages)]).returncode
+        if code:
+            print('api-prose-check: fix each hard problem in the docstring that it comes from', file=sys.stderr)
+        return code
+
+
+def pages(folder, out, files):
+    """Write the API page of each module of the api settings in FOLDER whose file is in FILES, as OUT/NAME.md.
+
+    It runs in the environment of the project, with smalldocs, which imports the modules. Returns the exit code.
+    """
+    from smalldocs import api as smalldocs_api
+    from smalldocs.config import load
+
+    project = load(folder)
+    settings = smalldocs_api.Settings.read(project.root, project.smalldocs.get('api') or {})
+    settings.importable()
+    wanted = {Path(os.path.realpath(name)) for name in files}
+    for package in settings.packages:
+        for module in smalldocs_api.package_modules(package):
+            source = getattr(module, '__file__', None)
+            if source and Path(os.path.realpath(source)) in wanted:
+                text = smalldocs_api.markdown(module.__name__, settings.packages)
+                (Path(out) / f'{module.__name__}.md').write_text(text)
+    return 0
+
+
 def main(argv):
-    """Run the command of ARGV, coverage, docs, fresh, begin ARG... or stamp, and return its exit code."""
-    if argv == ['coverage']:
-        return coverage()
+    """Run the command of ARGV, as the docstring of the module lists them, and return its exit code."""
+    if argv[:1] == ['coverage'] and len(argv) <= 2:
+        return coverage(argv[1] if len(argv) == 2 else None)
     if argv == ['docs']:
         return docs()
-    if argv == ['fresh']:
-        return 0 if fresh() else 1
-    if argv[:1] == ['begin']:
-        return begin(argv[1:])
-    if argv == ['stamp']:
-        return stamp()
-    print('usage: steps.py coverage | docs | fresh | begin [ARG...] | stamp', file=sys.stderr)
+    if argv[:1] == ['fresh'] and len(argv) == 3 and argv[1] in REPORTS:
+        return 0 if fresh(argv[1], argv[2]) else 1
+    if argv[:1] == ['ran'] and len(argv) >= 2 and argv[1] in REPORTS:
+        return 0 if ran(argv[1], argv[2:]) else 1
+    if argv[:1] == ['begin'] and len(argv) >= 2 and argv[1] in REPORTS:
+        return begin(argv[1], argv[2:])
+    if argv[:1] == ['stamp'] and len(argv) == 2 and argv[1] in REPORTS:
+        return stamp(argv[1])
+    if argv[:1] == ['hook'] and len(argv) == 5:
+        return hook(*argv[1:])
+    if argv[:1] == ['api'] and argv[1:] in (['check'], ['prose']):
+        return api(argv[1])
+    if argv[:1] == ['pages'] and len(argv) >= 3:
+        return pages(argv[1], argv[2], argv[3:])
+    print('usage: steps.py coverage [MODULE] | docs | fresh NAME MODULE | ran NAME [ARG...] | begin NAME [ARG...] | '
+          'stamp NAME | hook ROOT MODULE STEP RECIPE | api check | api prose | pages FOLDER OUT [FILE...]',
+          file=sys.stderr)
     return 2
 
 
