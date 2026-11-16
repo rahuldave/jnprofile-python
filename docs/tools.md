@@ -41,7 +41,7 @@ The packages are pytest and pytest-cov, in the group `test`.
 | `just test` | Runs the tests, and writes their coverage to `.jnprofile-python/coverage.xml`. Extra arguments go to pytest: `just test tests/unit`. With no arguments, a project with no tests yet passes. With the tool `integration`, the tests in `tests/integration` do not run, because `just integration` runs them |
 | `just coverage-check` | Fails on each changed line of code that no test runs. It is a step of `just check` |
 | `just cov` | Runs the tests, and shows the lines that they ran. With no arguments, a project with no tests yet passes |
-| `just python::test-paths FILE...` | Runs only the test files that you name, for `test-parent` of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test |
+| `just python::test-paths FILE...` | Runs only the test files that you name, for `test-parent` of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test. A file whose name starts with `-` goes to pytest as `./NAME`, because pytest on Python 3.10 and 3.11 reads it as an option |
 
 The tool adds `.pytest_cache/`, `.coverage`, `htmlcov/` and `.jnprofile-python/` to `.gitignore` and to `.worktreedisposable`.
 

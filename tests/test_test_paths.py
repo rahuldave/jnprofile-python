@@ -1,6 +1,7 @@
 """Run the recipe python::test-paths with real just, uv and pytest, and check the exit code of each case."""
 
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import tempfile
@@ -61,8 +62,9 @@ class TestPathsTests(unittest.TestCase):
             (root / name).write_text(text)
         return root
 
-    def run_paths(self, root: Path, *files: str) -> tuple:
-        run = subprocess.run(["just", "python::test-paths", *files], cwd=root, capture_output=True, text=True)
+    def run_paths(self, root: Path, *files: str, env: dict = None) -> tuple:
+        run = subprocess.run(["just", "python::test-paths", *files], cwd=root, capture_output=True, text=True,
+                             env=env)
         return run.returncode, run.stdout + run.stderr
 
     def test_each_case_gives_its_code(self) -> None:
@@ -76,6 +78,18 @@ class TestPathsTests(unittest.TestCase):
             with self.subTest(files=files):
                 found, out = self.run_paths(root, *files)
                 self.assertEqual(found, code, out)
+
+    def test_a_file_that_starts_with_a_dash_runs_on_each_python(self) -> None:
+        # pytest on Python 3.10 and 3.11 reads -dash_test.py as an option, also after --. uv gets each Python.
+        root = self.project()
+        for version in ("3.10", "3.11", "3.12"):
+            with self.subTest(version=version):
+                code, out = self.run_paths(root, "-dash_test.py", env=dict(os.environ, UV_PYTHON=version))
+                self.assertEqual(code, 0, out)
+                self.assertIn(f"Python {version}", out)
+                self.assertIn("PASSED -dash_test.py::test_d", out)
+        # An option that is not a file still goes to pytest, which stops on it.
+        self.assertEqual(self.run_paths(root, "--nosuchoption", env=dict(os.environ, UV_PYTHON="3.11"))[0], 2)
 
     def test_a_file_that_cannot_be_collected_hides_no_other_test(self) -> None:
         code, out = self.run_paths(self.project(), "tests/test_new.py", "tests/test_pass.py")
