@@ -249,12 +249,47 @@ class ApiTests(ProjectCase):
         subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
         code, out = self.just("python::api-check")
         self.assertEqual(code, 0, out)
-        self.assertIn("the API is not checked: smalldocs needs Python 3.11 or later, and the project has 3.9", out)
+        self.assertIn("the API is not checked: smalldocs needs Python 3.11 or later, and requires-python of the "
+                      "project is >=3.9,<3.11", out)
         # The key api of the docs config asks for the check, so it fails.
         self.write("docs/_smalldocs.yml", "project:\n  type: website\napi:\n  packages: [m]\n")
         code, out = self.just("python::api-check")
         self.assertEqual(code, 1, out)
-        self.assertIn("smalldocs needs Python 3.11 or later, and the project has 3.9", out)
+        self.assertIn("smalldocs needs Python 3.11 or later, and requires-python of the project is >=3.9,<3.11",
+                      out)
+
+    def test_an_upper_limit_of_requires_python_still_gets_a_python_for_smalldocs(self) -> None:
+        # uv alone would take the newest Python on the machine for >=3.11, above <3.12, and stop.
+        self.write("pyproject.toml", (self.root / "pyproject.toml").read_text().replace(">=3.11", ">=3.10,<3.12"))
+        subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
+        self.write("m.py", TYPED + UNTYPED)
+        for version in ("3.10", "3.11"):
+            self.write(".python-version", version + "\n")
+            code, out = self.just("python::api-check")
+            self.assertEqual(code, 1, (version, out))
+            self.assertNotIn("the API is not checked", out)
+            self.assertNotIn("uv cannot run", out)
+            self.assertIn("m:sub(a): no docment", out)
+
+    def test_a_failure_that_is_not_an_old_python_fails_with_the_error_of_uv(self) -> None:
+        # requires-python allows 3.11, but a dependency builds only below 3.11. The project runs on 3.10, so an old
+        # step took the failure for an old Python and passed with a note.
+        self.write("dep/pyproject.toml", '[build-system]\nrequires = ["setuptools"]\nbuild-backend = '
+                                         '"setuptools.build_meta"\n\n[project]\nname = "dep"\nversion = "0"\n')
+        self.write("dep/setup.py", "import sys\nfrom setuptools import setup\n\n"
+                                   "if sys.version_info >= (3, 11):\n    raise SystemExit('dep: no build on 3.11')\n"
+                                   "setup(py_modules=[])\n")
+        text = (self.root / "pyproject.toml").read_text().replace(">=3.11", ">=3.10")
+        text = text.replace('dependencies = [', 'dependencies = ["dep", ')
+        text += '\n[tool.uv.sources]\ndep = { path = "dep" }\n'
+        self.write("pyproject.toml", text)
+        self.write(".python-version", "3.10\n")
+        subprocess.run(["uv", "lock", "--quiet"], cwd=self.root, check=True, env=self.env)
+        code, out = self.just("python::api-check")
+        self.assertEqual(code, 1, out)
+        self.assertNotIn("the API is not checked", out)
+        self.assertNotIn("Raise it in pyproject.toml", out)
+        self.assertIn("api-check: uv cannot run the project with Python >=3.11,>=3.10", out)
 
     def test_the_api_steps_take_python_3_11_when_uv_would_take_3_9(self) -> None:
         # requires-python allows 3.9, and UV_PYTHON and .python-version ask for it. smalldocs needs 3.11, so the

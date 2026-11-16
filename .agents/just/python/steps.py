@@ -538,38 +538,105 @@ def api_settings(folder):
 # uv runs smalldocs with Python 3.11 or later, which it needs, in an isolated copy of the environment of the project.
 # Without --python, uv can take an older Python that requires-python allows, such as a 3.9 on the machine or in
 # UV_PYTHON. --isolated leaves .venv of the project as it is, with its own Python.
-SMALLDOCS_RUN = ('uv', 'run', '--isolated', '--quiet', '--python', '>=3.11')
+SMALLDOCS_FLOOR = '>=3.11'
+
+
+def requires_python():
+    """The requires-python of pyproject.toml, as text, or '' when there is none or it cannot be read."""
+    try:
+        import tomllib
+        data = tomllib.loads(Path('pyproject.toml').read_text())
+    except (ImportError, OSError, UnicodeDecodeError, ValueError):
+        return ''
+    project = data.get('project')
+    value = project.get('requires-python') if isinstance(project, dict) else None
+    return value.strip() if isinstance(value, str) else ''
+
+
+def smalldocs_python():
+    """The Python request of uv for smalldocs: the floor of smalldocs and the requires-python of the project at once.
+    uv does not join --python with requires-python, so with >=3.11 alone it can take a Python above the upper limit of
+    the project, such as 3.14 for <3.12, and stop. It is a floor and limits, never one exact version."""
+    limits = requires_python()
+    return f'{SMALLDOCS_FLOOR},{limits}' if limits else SMALLDOCS_FLOOR
+
+
+def smalldocs_run():
+    """The start of the command that runs a program with Python 3.11 or later in a copy of the project's environment."""
+    return ['uv', 'run', '--isolated', '--quiet', '--python', smalldocs_python()]
 
 
 def smalldocs(*args):
     """The command that runs smalldocs with ARGS in the environment of the project, so that it can import the code."""
-    return [*SMALLDOCS_RUN, '--with', SMALLDOCS, *args]
+    return [*smalldocs_run(), '--with', SMALLDOCS, *args]
+
+
+def version_key(text):
+    """The parts of a version such as 3.11 or 3.10.2, as numbers, or None when it is not such a version."""
+    parts = text.strip().split('.')
+    if not parts or not all(part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+def allows(clause, version):
+    """True when the clause of a specifier, such as <3.12 or ==3.10.*, allows VERSION, a tuple (3, minor, patch).
+    A clause that this function cannot read allows it, so that uv decides and names the error."""
+    found = re.fullmatch(r'\s*(~=|===|==|!=|<=|>=|<|>)\s*([0-9][0-9.]*)(\.\*)?\s*', clause)
+    if not found:
+        return True
+    operator, text, star = found.groups()
+    bound = version_key(text)
+    if bound is None:
+        return True
+    if star:
+        same = version[:len(bound)] == bound
+        return same if operator == '==' else not same if operator == '!=' else True
+    padded = bound + (0,) * (3 - len(bound)) if len(bound) < 3 else bound[:3]
+    if operator == '~=':
+        prefix = bound[:-1] if len(bound) > 1 else bound
+        return version >= padded and version[:len(prefix)] == prefix
+    checks = {'==': version == padded, '===': version == padded, '!=': version != padded, '<=': version <= padded,
+              '>=': version >= padded, '<': version < padded, '>': version > padded}
+    return checks[operator]
+
+
+def rules_out_floor(limits):
+    """True when the requires-python LIMITS allow no Python 3.11 or later."""
+    if not limits:
+        return False
+    clauses = limits.split(',')
+    for minor in range(11, 40):
+        for patch in (0, 99):
+            if all(allows(clause, (3, minor, patch)) for clause in clauses):
+                return False
+    return True
 
 
 def python_ok(asked):
-    """The exit code when the Python of the project cannot run smalldocs, which needs 3.11 or later, or None when it
-    can. The code is 1 when the project ASKED for the check, with the key api of docs/_smalldocs.yml. Otherwise the
-    check passes with a note, so that a project on an older Python is not stopped by a default tool. The project
-    can run smalldocs when its requires-python allows a Python 3.11 or later, which uv finds or downloads."""
-    probe = ['python', '-c', 'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))']
-    isolated = subprocess.run([*SMALLDOCS_RUN, *probe], capture_output=True, text=True)
-    if not isolated.returncode:
+    """The exit code when the project cannot run smalldocs, which needs Python 3.11 or later, or None when it can.
+
+    When requires-python of the project allows no 3.11 or later, the check passes with a note, so that a project on
+    an older Python is not stopped by a default tool. The code is 1 when the project ASKED for the check, with the key
+    api of docs/_smalldocs.yml. Any other failure, such as no Python 3.11 on the machine and no download, or a
+    dependency that does not build, fails with 1 and the error of uv.
+    """
+    limits = requires_python()
+    if rules_out_floor(limits):
+        note = (f'smalldocs needs Python 3.11 or later, and requires-python of the project is {limits}. Raise it in '
+                f'pyproject.toml, or take the tool out with just uninstall api')
+        if asked:
+            print(f'api-check: {note}', file=sys.stderr)
+            return 1
+        print(f'api-check: the API is not checked: {note}')
+        return 0
+    probe = ['python', '-c', 'import sys; sys.exit(sys.version_info < (3, 11))']
+    run = subprocess.run([*smalldocs_run(), *probe], capture_output=True, text=True)
+    if not run.returncode:
         return None
-    # The Python of the project, to name it in the note. A project whose own Python is 3.11 or later, but that uv
-    # cannot run in isolation, has another problem, which uv names.
-    run = subprocess.run(['uv', 'run', '--quiet', *probe], capture_output=True, text=True)
-    found = run.stdout.strip()
-    if not found or not run.returncode:
-        print(f'api-check: uv cannot run the project with Python 3.11 or later: {isolated.stderr.strip()}',
-              file=sys.stderr)
-        return 1
-    note = (f'smalldocs needs Python 3.11 or later, and the project has {found}. Raise requires-python in '
-            f'pyproject.toml, or take the tool out with just uninstall api')
-    if asked:
-        print(f'api-check: {note}', file=sys.stderr)
-        return 1
-    print(f'api-check: the API is not checked: {note}')
-    return 0
+    print(f'api-check: uv cannot run the project with Python {smalldocs_python()}: {run.stderr.strip()}',
+          file=sys.stderr)
+    return 1
 
 
 def ci_named():
