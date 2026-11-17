@@ -13,7 +13,7 @@ packages of the tool to a dependency group in `pyproject.toml`, adds its parts t
 
 | Tool | Packages, in the group | Recipes | Parts in config files | Lines in `.gitignore` and `.worktreedisposable` |
 |---|---|---|---|---|
-| none, always there | none | `setup` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
+| none, always there | none | `setup`, `version` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
 | `lint` | ruff, in `lint` | `fmt`, `fmt-check`, `lint` | `ruff.toml` | `.ruff_cache/` |
 | `test` | pytest, pytest-cov, in `test` | `test`, `coverage-check`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/`, `.jnprofile-python/` |
 | `integration` | pytest, pytest-cov, in `test` | `integration` | none | as for `test` |
@@ -42,6 +42,10 @@ settings win over the settings of the own file.
 - **`just python lint`** runs the recipe of the python profile.
 - **`just lint`** runs the `lint` of each language of the project. In a
   project that has only Python, it is the same as `just python lint`.
+- **`just python::version`** prints the version in `pyproject.toml`, for
+  the tag of a release. It prints nothing for no version or a dynamic
+  version. It exits with 2 when it cannot read the file, or when the
+  version is not in the normal form of PEP 440, such as `v1.2.3`.
 - **`just verify`** runs every installed check of each language, then `git
   diff --check`. For Python, the checks are `fmt-check`, `lint`, `integration`,
   `test`, `coverage-check`, `docstring-check`, `api-check` and

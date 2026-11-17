@@ -1,12 +1,14 @@
 """The helper of the steps of the python profile: coverage-check, integration, docstring-check and api-check.
 
 The recipes in this folder run it with uv: python steps.py coverage MODULE, docs, fresh NAME MODULE, ran NAME ARG...,
-begin NAME ARG..., stamp NAME, api check, api prose [--base REF] and pages. NAME is test, integration or prose.
+begin NAME ARG..., stamp NAME, api check, api prose [--base REF], pages and version. NAME is test, integration or
+prose.
 begin, stamp and fresh tie a coverage report, or the pass of api-prose-check, to the run ID JLOG_RUN of the root
 Justfile and to the worktree tree. So coverage-check reads the reports of test and integration only from the same run,
 and a check that two steps need runs once in a run. It needs Python 3.9 or later. The step coverage-check also needs
 diff-cover, which it runs with uv and Python 3.11 or later. docs runs in the environment of the project, with
 interrogate, so that it parses the code with the Python of the project. pages runs there too, with smalldocs.
+version reads pyproject.toml with tomllib, so it needs Python 3.11 or later.
 
 The lists .agents/generated.txt and .agents/coverage-exclude.txt come from the parent commit, through
 git show HEAD:./PATH, so a commit cannot exempt its own code. With no parent, both lists are empty. git matches
@@ -51,6 +53,17 @@ PROSE_GATE = Path('.agents/skills/nossaifd/scripts/prose_gate.py')
 BASE_VARIABLES = ('CI', 'GITHUB_BASE_REF', 'GITHUB_REF', 'GITHUB_EVENT_NAME', 'GITHUB_EVENT_PATH')
 # A file at the top of the project that is a script, not a module of the API: an import would run it.
 SCRIPTS = ('setup.py',)
+# A version in the normal form of PEP 440, the form that a build of the project gives, such as 1.2.3, 1!2.0rc1,
+# 1.0.post2.dev3 or 1.0+local.7. A spelling that a build changes, such as v1.2.3, 1.0-RC1 or 01.0, does not match,
+# so the tag of a release can be the version of the build. ASCII only, as PEP 440 is.
+RELEASE_VERSION = re.compile(r"""
+    (?:(?:0|[1-9][0-9]*)!)?
+    (?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))*
+    (?:(?:a|b|rc)(?:0|[1-9][0-9]*))?
+    (?:\.post(?:0|[1-9][0-9]*))?
+    (?:\.dev(?:0|[1-9][0-9]*))?
+    (?:\+[a-z0-9]+(?:\.[a-z0-9]+)*)?
+""", re.VERBOSE | re.ASCII)
 
 
 def git(*args):
@@ -822,6 +835,44 @@ def base_option(args):
     return ref
 
 
+def version():
+    """Print the key version of the table [project] of pyproject.toml on one line, for the tag of a release, and
+    return 0. Print nothing and return 0 when there is no pyproject.toml, no table [project] or no version in it, or
+    when the key dynamic of [project] names version. Return 2 with a message when the file cannot be read or is not
+    TOML, or when the version is not in the normal form of PEP 440. It reads only, with the standard library."""
+    import tomllib  # Python 3.11 or later. The other commands of this file need only Python 3.9.
+    path = Path('pyproject.toml')
+    if not path.exists() and not path.is_symlink():
+        return 0
+    try:
+        data = tomllib.loads(path.read_bytes().decode('utf-8-sig'))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        print(f'version: cannot read pyproject.toml: {error}', file=sys.stderr)
+        return 2
+    project = data.get('project', {})
+    if not isinstance(project, dict):
+        print('version: [project] of pyproject.toml is not a table', file=sys.stderr)
+        return 2
+    dynamic = project.get('dynamic', [])
+    if not isinstance(dynamic, list):
+        print('version: the key dynamic of [project] in pyproject.toml is not a list', file=sys.stderr)
+        return 2
+    if 'version' in dynamic:
+        if 'version' in project:
+            print('version: [project] of pyproject.toml has a version and names version in dynamic', file=sys.stderr)
+            return 2
+        return 0
+    if 'version' not in project:
+        return 0
+    value = project['version']
+    if not isinstance(value, str) or not RELEASE_VERSION.fullmatch(value):
+        print(f'version: the version {value!r} of pyproject.toml is not in the normal form of PEP 440, as 1.2.3',
+              file=sys.stderr)
+        return 2
+    print(value)
+    return 0
+
+
 def main(argv):
     """Run the command of ARGV, as the docstring of the module lists them, and return its exit code."""
     if argv[:1] == ['coverage'] and len(argv) <= 2:
@@ -843,8 +894,10 @@ def main(argv):
         return option if isinstance(option, int) else api('prose', option or None)
     if argv[:1] == ['pages'] and len(argv) >= 3:
         return pages(argv[1], argv[2], argv[3:])
+    if argv == ['version']:
+        return version()
     print('usage: steps.py coverage [MODULE] | docs | fresh NAME MODULE | ran NAME [ARG...] | begin NAME [ARG...] | '
-          'stamp NAME | api check | api prose [--base REF] | pages FOLDER OUT [FILE...]',
+          'stamp NAME | api check | api prose [--base REF] | pages FOLDER OUT [FILE...] | version',
           file=sys.stderr)
     return 2
 
