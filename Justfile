@@ -1,12 +1,25 @@
-# The recipes of this repository, the same five as in each profile of jnterfaces: lint, test, prose-check,
-# docs-check and check. CI runs just check, in .github/workflows/verify.yml.
+# The recipes of this repository, the same in each profile of jnterfaces: lint, test, prose-check, docs-check,
+# release-check, release and check. CI runs just check, in .github/workflows/verify.yml.
 smalldocs := "uvx --quiet smalldocs@0.5.12"
 ruff := "uvx --quiet ruff@0.17.5"
 # The checker of nossaifd. CI sets NOSSAIFD_CHECK to its clone of nossaifd.
 nossaifd_check := env("NOSSAIFD_CHECK", home_directory() / "Projects/nossaifd/check.py")
 
 # Every check of the repository, in this order
-check: lint test prose-check docs-check
+check: release-check lint test prose-check docs-check
+
+# The release tags. scripts/release_tag.py is a copy of .agents/skills/gpa/scripts/release_tag.py of
+# agent_gest_git_skills at the commit 799a44b. The job release of verify.yml runs just release on each push to main.
+release_tag := "uv run --no-project --quiet --no-python-downloads --python '>=3.9' python scripts/release_tag.py"
+
+# Tag HEAD with the next release vX.Y.Z by semver, push the tag and check it. Takes --dry-run first
+[positional-arguments]
+release *args:
+  @{{release_tag}} "$@"
+
+# Print the next tag, or fail on a git error. It needs no network and no remote
+release-check:
+  {{release_tag}} --check
 
 # The lint of the Python scripts with ruff, and of the recipe files of the profile
 lint:
