@@ -40,7 +40,7 @@ The machine needs `just` and `uv`. `uv` runs Python and the tools.
 
 ## Checks of this repository
 
-The Justfile of this repository has the same five recipes as each profile of jnterfaces:
+The Justfile of this repository has the same recipes as each profile of jnterfaces:
 
 | Recipe | What it does |
 |---|---|
@@ -48,7 +48,9 @@ The Justfile of this repository has the same five recipes as each profile of jnt
 | `just test` | Runs all the tests, with the live lab. The lab installs the profile into a new project with the installer of jnterfaces. |
 | `just prose-check` | Runs the checker of nossaifd on each Markdown page. A hard note fails it. |
 | `just docs-check` | Runs `smalldocs check docs`. |
-| `just check` | Runs `lint`, `test`, `prose-check` and `docs-check`, in that order. |
+| `just release-check` | Prints the next tag. It needs no network. This repository has no manifest with a version, so the tag comes from the commits since the last tag. |
+| `just release` | Tags HEAD with the next release `vX.Y.Z`, pushes the tag and checks it. `just release --dry-run` prints the tag and changes nothing. |
+| `just check` | Runs `release-check`, `lint`, `test`, `prose-check` and `docs-check`, in that order. |
 
 These settings name the clones that the checks use:
 
@@ -57,6 +59,8 @@ These settings name the clones that the checks use:
 - **`SKILL_PACKAGES_DIR`** names the folder of the other packages that the installer installs. The default is the folder of the clone of jnterfaces.
 
 CI runs `just check` on each push and each pull request, in `.github/workflows/verify.yml`. CI clones jnterfaces, agent_gest_git_skills and nossaifd at pinned commits. CI runs no agent.
+
+On each push to `main`, the job `release` of `.github/workflows/verify.yml` runs `just release` after the job `verify` passes. Only that job can write to the repository, to push the tag. So nobody tags by hand. The script is `scripts/release_tag.py`, a copy of the script of the gpa skill of agent_gest_git_skills. The section "Release tags" of its `docs/integration_delivery_workflow.md` gives the rules.
 
 On a machine, a test that needs a missing program or clone skips. In CI, such a test fails, so a missing program cannot pass the run. CI is on when the variable `CI` is set to a value other than empty, `false` and `0`.
 
