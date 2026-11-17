@@ -9,6 +9,14 @@ python_steps := quote(source_directory() / "steps.py")
 setup:
     uv sync
 
+# Print the version of the project, the key version of [project] in pyproject.toml, on one line, for the tag of a
+# release. With no pyproject.toml, no version, or a version that the key dynamic names, it prints nothing and exits 0.
+# A file that it cannot read, or a version that is not in the normal form of PEP 440, exits 2. It reads with tomllib
+# of Python 3.11 or later, and writes nothing. --no-config keeps uv from its settings in pyproject.toml and uv.toml,
+# such as required-version, which can stop uv before Python reads the file
+version:
+    @uv run --no-project --no-config --quiet --python '>=3.11' python -I -B {{python_steps}} version
+
 # pytest for test, cov and integration, with coverage: test and integration write their reports for coverage-check,
 # and cov shows the report. test and integration are steps of just check, and jlog logs only the lines of a recipe
 # with no shebang line, so each runs this script in one line, through just. module_file() is the file of this

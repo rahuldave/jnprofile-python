@@ -11,8 +11,23 @@ Every project of the profile gets the base, even a project with no tool.
 | Recipe | What it does |
 |---|---|
 | `just setup` | Installs Python and every dependency into `.venv`, as `uv.lock` says |
+| `just python::version` | Prints the version of the project on one line, such as `1.2.3`. It is not a step of `just check` |
 
 The base adds `.venv/`, `.local/`, `__pycache__/`, `*.pyc`, `dist/` and `build/` to `.gitignore`. It adds `.venv/`, `__pycache__/` and `*.pyc` to `.worktreedisposable`. That file lists the ignored files that a command can make again. `just worktrees-prune` keeps a worktree that has ignored files, but it does not count these files.
+
+### version
+
+The release of agent_gest_git_skills gives a commit a tag, such as `v1.2.3`. The tag must agree with the version in the manifest of the project. For Python, the manifest is `pyproject.toml`. `just python::version` gives the release that version.
+
+- **A static version.** The recipe prints the key `version` of the table `[project]`, as the file has it, and exits with 0. The version must be in the normal form of PEP 440, the standard of Python for versions, such as `1.2.3` or `2.0.0rc1`. A build of the project gives that form, so a tag of the printed version agrees with the build.
+- **No version.** With no `pyproject.toml`, no table `[project]` or no key `version`, the recipe prints nothing and exits with 0.
+- **A dynamic version.** When the key `dynamic` of `[project]` names `version`, a build tool sets the version, for example from a git tag. The recipe cannot know that version. So it prints nothing and exits with 0.
+- **A file that it cannot read.** The recipe exits with 2 and a message. Examples are a file with no permission to read, a folder and a file that is not TOML. A key `version` together with `version` in `dynamic` exits with 2 too, because PEP 621 forbids that pair.
+- **A version that is not in the normal form.** The recipe exits with 2 and a message, for example for `v1.2.3`, `1.0.0-RC1` or `01.0`. A build changes each of them, to `1.2.3`, `1.0.0rc1` and `1.0`, so a tag of the spelling in the file would not agree with the build.
+
+uv runs the recipe with Python 3.11 or later and with no package. uv runs with `--no-config`, so it does not read its settings in `pyproject.toml` or in a `uv.toml`. A setting such as `required-version` cannot stop the recipe.
+
+The floor is `>=3.11`, not one exact version, because the module `tomllib` of the standard library reads TOML from Python 3.11. Python runs with `-I`, so a variable such as `PYTHONPATH` cannot change the module that it loads. The recipe reads from the top of the project, also when you run it from a subfolder. It writes no file of its own. In an installed project, jlog logs the run into `.agents/log`, as for each recipe.
 
 ## lint
 
