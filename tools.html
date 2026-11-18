@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="generator" content="smalldocs-0.5.5"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"><title>The tools – jnprofile-python</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="site_libs/themes/nocturne/nocturne.css" data-mode="light" class="quarto-color-scheme" id="quarto-bootstrap-light" media="not all and (prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/themes/nocturne/nocturne-dark.css" data-mode="dark" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap-dark" media="(prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/bootstrap-icons/bootstrap-icons.min.css"><link rel="stylesheet" href="site_libs/smalldocs.css"><meta name="smalldocs:offset" content="./"><script src="site_libs/bootstrap/bootstrap.bundle.min.js"></script><script src="site_libs/fuse/fuse.min.js"></script><script src="site_libs/smalldocs.js" defer></script><script>(function(){var d=document.documentElement,s=null;try{s=localStorage.getItem('smalldocs-scheme')}catch(e){}var alt=s?s==='alternate':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);var ls=document.querySelectorAll('link.quarto-color-scheme');if(alt)d.dataset.scheme='alternate';if(s)ls.forEach(function(l){var on=l.classList.contains('quarto-color-alternate')===alt;if(on)l.setAttribute('blocking','render');l.media=on?'all':'not all'});var on=ls[alt?1:0];if(on&&on.dataset.mode==='dark')d.classList.add('quarto-dark')})();</script></head><body class="nav-fixed"><header id="quarto-header" class="headroom sticky-top"><nav class="navbar navbar-expand-lg sd-navbar-default"><div class="navbar-container container-fluid"><div class="navbar-brand-container mx-auto"><a class="navbar-brand" href="index.html"><span class="navbar-title">jnprofile-python</span></a></div><button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="navbarCollapse"><ul class="navbar-nav navbar-nav-scroll me-auto"><li class="nav-item"><a class="nav-link" href="index.html"><span class="menu-text">Home</span></a></li><li class="nav-item"><a class="nav-link active" href="tools.html" aria-current="page"><span class="menu-text">Tools</span></a></li></ul><ul class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="nav-menu-1" role="link" data-bs-toggle="dropdown" aria-expanded="false"><span class="menu-text">Projects</span></a><ul class="dropdown-menu" aria-labelledby="nav-menu-1"><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnterfaces/"><span class="menu-text">jnterfaces</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-python/"><span class="menu-text">jnprofile-python</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-typescript/"><span class="menu-text">jnprofile-typescript</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/agent_gest_git_skills/"><span class="menu-text">agent_gest_git_skills</span></a></li></ul></li><li class="nav-item compact"><a class="nav-link" href="https://github.com/rahuldave/jnprofile-python" aria-label="github"><i class="bi bi-github" role="img"></i></a></li><li class="nav-item compact"><a class="quarto-color-scheme-toggle nav-link" href="" title="Toggle dark mode" onclick="window.smalldocsToggleScheme(); return false;"><i class="bi"></i></a></li></ul><div class="quarto-navbar-tools"><div class="smalldocs-search" id="quarto-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control form-control-sm" placeholder="Search" aria-label="Search" autocomplete="off"><div class="smalldocs-search-results dropdown-menu"></div></div></div></div></div></nav></header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article has-margin"><div id="quarto-margin-sidebar" class="sidebar margin-sidebar"><nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">On this page</h2><ul><li><a href="#the-base" id="toc-the-base" class="nav-link" data-scroll-target="#the-base">The base</a></li><li><a href="#lint" id="toc-lint" class="nav-link" data-scroll-target="#lint">lint</a></li><li><a href="#test" id="toc-test" class="nav-link" data-scroll-target="#test">test</a></li><li><a href="#typecheck" id="toc-typecheck" class="nav-link" data-scroll-target="#typecheck">typecheck</a></li></ul></nav><div class="toc-actions"><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/blob/main/docs/tools.md" class="toc-action"><i class="bi bi-code"></i> View source</a></div><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/issues/new" class="toc-action"><i class="bi bi-chat-right"></i> Report an issue</a></div></div></div><main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title"><h1 class="title">The tools</h1></div><div class="quarto-title-meta"></div></header><p>Each tool of the profile brings its packages, its recipes and its parts. The installer adds the packages to a dependency group of <code>pyproject.toml</code> with <code>uv add</code>. The profile sets <code>tool.uv.default-groups = &quot;all&quot;</code>, so <code>uv sync</code> and <code>uv run</code> install every group.</p>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="generator" content="smalldocs-0.5.12"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"><title>The tools – jnprofile-python</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="site_libs/themes/atelier/atelier.css" data-mode="light" class="quarto-color-scheme" id="quarto-bootstrap-light" media="not all and (prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/themes/atelier/atelier-dark.css" data-mode="dark" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap-dark" media="(prefers-color-scheme: dark)"><link rel="stylesheet" href="site_libs/bootstrap-icons/bootstrap-icons.min.css"><link rel="stylesheet" href="site_libs/smalldocs.css"><meta name="smalldocs:offset" content="./"><script src="site_libs/bootstrap/bootstrap.bundle.min.js"></script><script src="site_libs/fuse/fuse.min.js"></script><script src="site_libs/smalldocs.js" defer></script><script>(function(){var d=document.documentElement,s=null;try{s=localStorage.getItem('smalldocs-scheme')}catch(e){}var alt=s?s==='alternate':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);var ls=document.querySelectorAll('link.quarto-color-scheme');if(alt)d.dataset.scheme='alternate';if(s)ls.forEach(function(l){var on=l.classList.contains('quarto-color-alternate')===alt;if(on)l.setAttribute('blocking','render');l.media=on?'all':'not all'});var on=ls[alt?1:0];if(on&&on.dataset.mode==='dark')d.classList.add('quarto-dark')})();</script></head><body class="nav-fixed"><header id="quarto-header" class="headroom sticky-top"><nav class="navbar navbar-expand-lg sd-navbar-default"><div class="navbar-container container-fluid"><div class="navbar-brand-container mx-auto"><a class="navbar-brand" href="index.html"><span class="navbar-title">jnprofile-python</span></a></div><button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="navbarCollapse"><ul class="navbar-nav navbar-nav-scroll me-auto"><li class="nav-item"><a class="nav-link" href="index.html"><span class="menu-text">Home</span></a></li><li class="nav-item"><a class="nav-link active" href="tools.html" aria-current="page"><span class="menu-text">Tools</span></a></li></ul><ul class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="nav-menu-1" role="link" data-bs-toggle="dropdown" aria-expanded="false"><span class="menu-text">Projects</span></a><ul class="dropdown-menu" aria-labelledby="nav-menu-1"><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnterfaces/"><span class="menu-text">jnterfaces</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-python/"><span class="menu-text">jnprofile-python</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/jnprofile-typescript/"><span class="menu-text">jnprofile-typescript</span></a></li><li class=""><a class="dropdown-item" href="https://rahuldave.github.io/agent_gest_git_skills/"><span class="menu-text">agent_gest_git_skills</span></a></li></ul></li><li class="nav-item compact"><a class="nav-link" href="https://github.com/rahuldave/jnprofile-python" aria-label="github"><i class="bi bi-github" role="img"></i></a></li><li class="nav-item compact"><a class="quarto-color-scheme-toggle nav-link" href="" title="Toggle dark mode" onclick="window.smalldocsToggleScheme(); return false;"><i class="bi"></i></a></li></ul><div class="quarto-navbar-tools"><div class="smalldocs-search" id="quarto-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control form-control-sm" placeholder="Search" aria-label="Search" autocomplete="off"><div class="smalldocs-search-results dropdown-menu"></div></div></div></div></div></nav></header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article has-margin"><div id="quarto-margin-sidebar" class="sidebar margin-sidebar"><nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">On this page</h2><ul><li><a href="#the-base" id="toc-the-base" class="nav-link" data-scroll-target="#the-base">The base</a><ul><li><a href="#version" id="toc-version" class="nav-link" data-scroll-target="#version">version</a></li></ul></li><li><a href="#lint" id="toc-lint" class="nav-link" data-scroll-target="#lint">lint</a></li><li><a href="#test" id="toc-test" class="nav-link" data-scroll-target="#test">test</a><ul><li><a href="#coverage-check" id="toc-coverage-check" class="nav-link" data-scroll-target="#coverage-check">coverage-check</a></li></ul></li><li><a href="#integration" id="toc-integration" class="nav-link" data-scroll-target="#integration">integration</a></li><li><a href="#docstring" id="toc-docstring" class="nav-link" data-scroll-target="#docstring">docstring</a></li><li><a href="#api" id="toc-api" class="nav-link" data-scroll-target="#api">api</a><ul><li><a href="#the-rule-of-the-api-pages-for-the-commit-gate" id="toc-the-rule-of-the-api-pages-for-the-commit-gate" class="nav-link" data-scroll-target="#the-rule-of-the-api-pages-for-the-commit-gate">The rule of the API pages for the commit gate</a></li></ul></li><li><a href="#typecheck" id="toc-typecheck" class="nav-link" data-scroll-target="#typecheck">typecheck</a></li></ul></nav><div class="toc-actions"><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/blob/main/docs/tools.md" class="toc-action"><i class="bi bi-code"></i> View source</a></div><div class="action-links"><a href="https://github.com/rahuldave/jnprofile-python/issues/new" class="toc-action"><i class="bi bi-chat-right"></i> Report an issue</a></div></div></div><main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title"><h1 class="title">The tools</h1></div><div class="quarto-title-meta"></div></header><p>Each tool of the profile brings its packages, its recipes and its parts. The installer adds the packages to a dependency group of <code>pyproject.toml</code> with <code>uv add</code>. The profile sets <code>tool.uv.default-groups = &quot;all&quot;</code>, so <code>uv sync</code> and <code>uv run</code> install every group.</p>
 <section id="the-base" class="level2">
 <h2 class="anchored" data-anchor-id="the-base">The base</h2>
 <p>Every project of the profile gets the base, even a project with no tool.</p>
@@ -15,14 +15,31 @@
 <td><code>just setup</code></td>
 <td>Installs Python and every dependency into <code>.venv</code>, as <code>uv.lock</code> says</td>
 </tr>
+<tr>
+<td><code>just python::version</code></td>
+<td>Prints the version of the project on one line, such as <code>1.2.3</code>. It is not a step of <code>just check</code></td>
+</tr>
 </tbody>
 </table>
 </div>
 <p>The base adds <code>.venv/</code>, <code>.local/</code>, <code>__pycache__/</code>, <code>*.pyc</code>, <code>dist/</code> and <code>build/</code> to <code>.gitignore</code>. It adds <code>.venv/</code>, <code>__pycache__/</code> and <code>*.pyc</code> to <code>.worktreedisposable</code>. That file lists the ignored files that a command can make again. <code>just worktrees-prune</code> keeps a worktree that has ignored files, but it does not count these files.</p>
+<section id="version" class="level3">
+<h3 class="anchored" data-anchor-id="version">version</h3>
+<p>The release of agent_gest_git_skills gives a commit a tag, such as <code>v1.2.3</code>. The tag must agree with the version in the manifest of the project. For Python, the manifest is <code>pyproject.toml</code>. <code>just python::version</code> gives the release that version.</p>
+<ul>
+<li><strong>A static version.</strong> The recipe prints the key <code>version</code> of the table <code>[project]</code>, as the file has it, and exits with 0. The version must be in the normal form of PEP 440, the standard of Python for versions, such as <code>1.2.3</code> or <code>2.0.0rc1</code>. A build of the project gives that form, so a tag of the printed version agrees with the build.</li>
+<li><strong>No version.</strong> With no <code>pyproject.toml</code>, no table <code>[project]</code> or no key <code>version</code>, the recipe prints nothing and exits with 0.</li>
+<li><strong>A dynamic version.</strong> When the key <code>dynamic</code> of <code>[project]</code> names <code>version</code>, a build tool sets the version, for example from a git tag. The recipe cannot know that version. So it prints nothing and exits with 0.</li>
+<li><strong>A file that it cannot read.</strong> The recipe exits with 2 and a message. Examples are a file with no permission to read, a folder and a file that is not TOML. A key <code>version</code> together with <code>version</code> in <code>dynamic</code> exits with 2 too, because PEP 621 forbids that pair.</li>
+<li><strong>A version that is not in the normal form.</strong> The recipe exits with 2 and a message, for example for <code>v1.2.3</code>, <code>1.0.0-RC1</code> or <code>01.0</code>. A build changes each of them, to <code>1.2.3</code>, <code>1.0.0rc1</code> and <code>1.0</code>, so a tag of the spelling in the file would not agree with the build.</li>
+</ul>
+<p>uv runs the recipe with Python 3.11 or later and with no package. uv runs with <code>--no-config</code>, so it does not read its settings in <code>pyproject.toml</code> or in a <code>uv.toml</code>. A setting such as <code>required-version</code> cannot stop the recipe.</p>
+<p>The floor is <code>&gt;=3.11</code>, not one exact version, because the module <code>tomllib</code> of the standard library reads TOML from Python 3.11. Python runs with <code>-I</code>, so a variable such as <code>PYTHONPATH</code> cannot change the module that it loads. The recipe reads from the top of the project, also when you run it from a subfolder. It writes no file of its own. In an installed project, jlog logs the run into <code>.agents/log</code>, as for each recipe.</p>
+</section>
 </section>
 <section id="lint" class="level2">
 <h2 class="anchored" data-anchor-id="lint">lint</h2>
-<p>The packages are ruff and pre-commit, in the group <code>lint</code>.</p>
+<p>The package is ruff, in the group <code>lint</code>.</p>
 <div class="sd-table">
 <table class="caption-top table">
 <thead>
@@ -37,12 +54,12 @@
 <td>Formats the code. Extra arguments go to ruff: <code>just fmt --check</code></td>
 </tr>
 <tr>
-<td><code>just lint</code></td>
-<td>Checks the code against the rules of ruff. Extra arguments go to ruff: <code>just lint --fix</code></td>
+<td><code>just fmt-check</code></td>
+<td>Fails when ruff would change the format of a file. It changes no file. It is a step of <code>just check</code></td>
 </tr>
 <tr>
-<td><code>just hook</code></td>
-<td>Installs the git hook, which runs the checks of <code>.pre-commit-config.yaml</code> before every commit. Run it once for each clone</td>
+<td><code>just lint</code></td>
+<td>Checks the code against the rules of ruff. Extra arguments go to ruff: <code>just lint --fix</code></td>
 </tr>
 </tbody>
 </table>
@@ -50,9 +67,9 @@
 <p>The parts:</p>
 <ul>
 <li><strong><code>ruff.toml</code></strong>: an include of <code>.agents/config/python/ruff.toml</code>. That file sets <code>line-length = 120</code>, leaves out <code>.agents</code>, <code>.claude</code> and <code>.codex</code>, and selects the rules <code>E</code>, <code>W</code> and <code>F</code>. When your <code>pyproject.toml</code> has a <code>[tool.ruff]</code> table, the installer adds no part to <code>ruff.toml</code>, because ruff reads <code>ruff.toml</code> in place of the settings in <code>pyproject.toml</code>.</li>
-<li><strong><code>.pre-commit-config.yaml</code></strong>: one item of <code>repos</code> for each repository of checks. The first repository is pre-commit-hooks, with checks for any file. The second is ruff, which runs the linter and then the formatter.</li>
 </ul>
-<p>The tool adds <code>.ruff_cache/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>. <code>just uninstall lint</code> also takes out the git hook that <code>just hook</code> installed.</p>
+<p>The tool adds <code>.ruff_cache/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+<p>The profile does not install pre-commit or a git hook. The tasker role, from agent_gest_git_skills, installs them for every language, with the commit gate. <code>just check</code> runs <code>fmt-check</code> and <code>lint</code>, so the hook needs no ruff of its own. A project from an older profile, which installed pre-commit for <code>lint</code>, loses it at the next <code>just install</code>. The <code>before_remove</code> of <code>lint</code> still names pre-commit, so the installer runs <code>pre-commit uninstall</code> first, and no commit fails on a hook without its config.</p>
 </section>
 <section id="test" class="level2">
 <h2 class="anchored" data-anchor-id="test">test</h2>
@@ -68,16 +85,27 @@
 <tbody>
 <tr>
 <td><code>just test</code></td>
-<td>Runs the tests. Extra arguments go to pytest: <code>just test tests/unit</code>. With no arguments, a project with no tests yet passes</td>
+<td>Runs the tests, and writes their coverage to <code>.jnprofile-python/coverage.xml</code>. Extra arguments go to pytest: <code>just test tests/unit</code>. With no arguments, a project with no tests yet passes. With the tool <code>integration</code>, the tests in <code>tests/integration</code> do not run, because <code>just integration</code> runs them</td>
+</tr>
+<tr>
+<td><code>just coverage-check</code></td>
+<td>Fails on each changed line of code that no test runs. It is a step of <code>just check</code></td>
 </tr>
 <tr>
 <td><code>just cov</code></td>
 <td>Runs the tests, and shows the lines that they ran. With no arguments, a project with no tests yet passes</td>
 </tr>
+<tr>
+<td><code>just python::test-paths FILE...</code></td>
+<td>Runs only the test files that you name, for <code>test-parent</code> of the commit gates. It exits with 0 when tests ran and passed, with 1 when a test fails or a file cannot be collected, and with 5 when no test runs, as for a file whose tests are all skipped or all xfail. Any other code means that uv or pytest itself failed, or that a test ended the run. The output ends with one line for each test. A file whose name starts with <code>-</code> goes to pytest as <code>./NAME</code>, because pytest on Python 3.10 and 3.11 reads it as an option</td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>The tool adds <code>.pytest_cache/</code>, <code>.coverage</code> and <code>htmlcov/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+<p>The tool adds <code>.pytest_cache/</code>, <code>.coverage</code>, <code>htmlcov/</code> and <code>.jnprofile-python/</code> to <code>.gitignore</code> and to <code>.worktreedisposable</code>.</p>
+<p>The profile names its files for the commit gates. The code is <code>**/*.py</code>. The test files are <code>tests/**</code>,
+<code>**/test_*.py</code>, <code>**/*_test.py</code> and <code>**/conftest.py</code>. <code>test-parent</code> copies only the test files into the parent commit,
+so no new code reaches it.</p>
 <p>The tool also adds the item <code>&quot;.&quot;</code> to <code>tool.pytest.ini_options.pythonpath</code> in <code>pyproject.toml</code>. So a test in <code>tests/</code> can import a module at the top of the project, such as <code>app.py</code>.</p>
 <ul>
 <li>
@@ -97,6 +125,145 @@
 <p>The installer looks for these configs only when it adds the part. If you add a pytest config after the install, the part stays in <code>pyproject.toml</code>, and pytest no longer reads the part. Add <code>pythonpath = [&quot;.&quot;]</code> to your config, or run <code>just uninstall test</code> and <code>just install test</code> to take the part out.</p>
 </li>
 </ul>
+<section id="coverage-check" class="level3">
+<h3 class="anchored" data-anchor-id="coverage-check">coverage-check</h3>
+<p><code>coverage-check</code> compares the coverage report with the parent commit. It runs diff-cover with a limit of 100%.</p>
+<ul>
+<li><strong>A line that no test runs</strong> fails. A line with <code># pragma: no cover</code> counts as run.</li>
+<li><strong>A changed file that no test imports</strong> fails, because the report does not have it.</li>
+<li><strong>No report</strong> fails, with the message “write tests”. pytest-cov writes no report when no test runs.</li>
+<li><strong>The first commit</strong> has no parent. Then each line of code must run in the tests.</li>
+<li><strong>The files that do not count</strong> are the test files and the files in <code>.agents</code>, <code>.claude</code> and <code>.codex</code>. The files that <code>.agents/generated.txt</code> or <code>.agents/coverage-exclude.txt</code> names do not count either. The step reads both lists from the parent commit, so a commit cannot exempt its own code with them. The config of coverage.py, such as <code>exclude_also</code> in <code>[tool.coverage.report]</code>, comes from the commit itself, so <code>test-review</code> judges each change to it.</li>
+<li><strong>The report of the same run.</strong> <code>test</code> saves the run ID of <code>just check</code>, <code>JLOG_RUN</code>, with the tree of the worktree. <code>coverage-check</code> reads the report only when both match. Otherwise it runs the tests first.</li>
+<li><strong>The integration tests.</strong> A line that only the integration tests run counts as run when two things are true. The project has the <code>integration</code> tool. The key <code>steps</code> of <code>.agents/stack.json</code> has <code>integration</code>, so <code>just check</code> runs it. Then <code>coverage-check</code> reads the reports of <code>test</code> and of <code>integration</code>, and a line counts as run when one of them runs it. When the report of <code>integration</code> is not from the same run, <code>coverage-check</code> runs the integration tests first.</li>
+</ul>
+</section>
+</section>
+<section id="integration" class="level2">
+<h2 class="anchored" data-anchor-id="integration">integration</h2>
+<p>The packages are pytest and pytest-cov, in the group <code>test</code>. The tool is not a default tool. Add it with <code>just install integration</code>.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just integration</code></td>
+<td>Runs the tests in <code>tests/integration</code>, and writes their coverage to <code>.jnprofile-python/integration.xml</code>. Extra arguments go to pytest in place of the folder: <code>just integration tests/integration/test_db.py</code>. With no folder <code>tests/integration</code>, it passes. It is a step of <code>just check</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>just check</code> runs <code>integration</code> before <code>coverage-check</code>. So <code>coverage-check</code> reads the report of the step <code>integration</code> of the same run, and does not run the integration tests again. When <code>just integration</code> runs after it passed in the same run, on the same tree, it says “it passed before in this run” and does not run the tests again.</p>
+<p>The tool adds the same lines to <code>.gitignore</code> and to <code>.worktreedisposable</code> as the tool <code>test</code>.</p>
+</section>
+<section id="docstring" class="level2">
+<h2 class="anchored" data-anchor-id="docstring">docstring</h2>
+<p>The tool has no package. uv runs interrogate in the environment of the project, so interrogate reads the code with the Python of the project.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just docstring-check</code></td>
+<td>Fails on each module, class, function or method with no docstring, public or private. It names the file and the line. It is a step of <code>just check</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A magic method, such as <code>__repr__</code>, and <code>__init__</code> do not count. The protocol and the docstring of the class say what they do. An <code>@overload</code> stub, a property setter and a property deleter do not count either, because the function and the getter have the docstring. The test files, the files in <code>.agents</code>, <code>.claude</code> and <code>.codex</code>, and the files that <code>.agents/generated.txt</code> of the parent commit names do not count.</p>
+<p><code>api-check</code> of the tool <code>api</code> checks the docments. <code>docstring-check</code> does not. A docment is the comment after a parameter or after the return type.</p>
+</section>
+<section id="api" class="level2">
+<h2 class="anchored" data-anchor-id="api">api</h2>
+<p>The tool has no package. uv runs smalldocs 0.5.12 in a copy of the environment of the project, so smalldocs can import the code. smalldocs needs Python 3.11 or later, so uv runs it with Python 3.11 or later, also when <code>.python-version</code> or <code>UV_PYTHON</code> names an older one. The step gives uv the floor 3.11 and the <code>requires-python</code> of the project at once, such as <code>&gt;=3.11,&gt;=3.10,&lt;3.12</code>. So uv takes a Python that both allow, not a newer one above the upper limit of the project. The copy is isolated, so <code>.venv</code> of the project keeps its own Python.</p>
+<p>The tool is a default tool, and its check runs in a project with the docs role of jnterfaces.</p>
+<div class="sd-table">
+<table class="caption-top table">
+<thead>
+<tr>
+<th>Recipe</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>just api-check</code></td>
+<td>Runs <code>smalldocs api check</code>. It fails on each function, method or class with no docstring, no type for a parameter or the return, or no docment. It names the module and the function, for example <code>m:sub(a): no docment</code>. Then it runs <code>api-prose-check</code></td>
+</tr>
+<tr>
+<td><code>just api-prose-check</code></td>
+<td>Checks the API page of each changed module with the checker of nossaifd. A changed module is a module with a change against <code>HEAD</code>, or each module on the first commit. In CI, or with <code>--base REF</code>, it is a module with a change since the base, as for <code>prose-check</code>: <code>just api-prose-check --base main</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The settings of <code>api-check</code>:</p>
+<ul>
+<li><strong>With a key <code>api</code> in <code>docs/_smalldocs.yml</code></strong>, smalldocs reads its settings there. The key <code>packages</code> names the packages to check.</li>
+<li><strong>Otherwise</strong>, the step writes a temporary config. It names each package at the top of the project or in <code>src/</code>. A package is a folder with an <code>__init__.py</code>. It also names the module with the name of the project in <code>pyproject.toml</code>. For the project <code>my-app</code>, that module is <code>my_app.py</code>. Other files at the top, such as <code>noxfile.py</code>, are often scripts, and an import would run them. So the step leaves them out. A name that starts with <code>_</code> is private, and the step leaves it out. The test files and the files that <code>.agents/generated.txt</code> of the parent commit names do not count.</li>
+<li><strong>With a list of sections under the key <code>api</code></strong>, <code>api-prose-check</code> fails with exit 2. It reads only one section of Python settings.</li>
+<li><strong>With no package and no such module</strong>, the step passes.</li>
+<li><strong>When an import fails</strong>, smalldocs exits with 2, and the step says so. Name the packages in the key <code>api</code> of <code>docs/_smalldocs.yml</code>.</li>
+<li><strong>When <code>requires-python</code> of the project allows no Python 3.11 or later</strong>, smalldocs cannot run. Then the step passes with a note.</li>
+<li><strong>When uv cannot run the project with Python 3.11 or later for another reason</strong>, the step fails with the error of uv. Examples are no Python 3.11 on the machine with no download, and a dependency that does not build. With a key <code>api</code> in <code>docs/_smalldocs.yml</code>, the project asks for the check, so the step fails.</li>
+</ul>
+<p>smalldocs checks every function, public and private. Its pages show only the public ones.</p>
+<p>The page that <code>api-prose-check</code> checks has the whole docstring of the module in its body, with the first paragraph. The checker of nossaifd does not read the front matter or a quoted string, so the step never puts a docstring there. A module with no public function, method or class has no API page, so the step does not check its docstring.</p>
+<p>Where the checks run:</p>
+<ul>
+<li><strong><code>api-check</code></strong> runs in the step <code>docs-check</code> of the docs role of jnterfaces. That step runs the <code>api-check</code> of each language that has one. The docments are a check of the docs site, so without the docs role no step of <code>just check</code> runs <code>api-check</code>. You can still run <code>just api-check</code>, and <code>just verify</code> runs it.</li>
+<li><strong><code>api-prose-check</code></strong> runs in <code>api-check</code>. The step <code>prose-check</code> of nossaifd runs it too. It runs once in a run. When it passed before in the same run of <code>just check</code>, on the same tree and with the same base, it says so and does not run again. A call with another base runs again.</li>
+</ul>
+<p>The changed modules of <code>api-prose-check</code>:</p>
+<ul>
+<li><strong>On a machine</strong>, without CI and without <code>--base</code>, the step does not load <code>prose_gate.py</code>. A changed module has a change against <code>HEAD</code>, in the index or the working tree, or is a new file.</li>
+<li><strong>In CI</strong>, a checkout is clean, so the changes against <code>HEAD</code> hold no module. So in CI the step takes the base that <code>prose-check</code> of nossaifd takes. On a pull request, the base is the merge base of the base branch and <code>HEAD</code>. CI is on when the variable <code>CI</code> is set to a value other than empty, <code>false</code> and <code>0</code>.</li>
+<li><strong>With <code>--base REF</code></strong>, the base is the merge base of <code>REF</code> and <code>HEAD</code>, also outside CI. As in <code>check-changed</code> of nossaifd, the last <code>--base</code> counts, and <code>-v</code> does nothing here.</li>
+<li><strong>With a base</strong>, a changed module has a change since the base, in the commits or in the working tree.</li>
+<li><strong>The rule of the base</strong> is not in this profile. The step loads <code>.agents/skills/nossaifd/scripts/prose_gate.py</code>, which the prose role installs, and calls its <code>base_commit</code>. So in CI, both steps compare with the same commit. A failure of <code>base_commit</code> fails the step with exit 2.</li>
+<li><strong>An error of the base</strong>, as a shallow clone or a base that is not a commit, fails the step with exit 2 and the message of nossaifd. An error of the base never gives a pass.</li>
+<li><strong>An older install of nossaifd</strong> has no <code>base_commit</code>. Then the step fails with exit 2 in CI or with <code>--base</code>, and asks you to run <code>just install</code>. Without CI and without <code>--base</code>, nothing changes. An install between nossaifd #17 and #18 has <code>base_commit</code>. It works, but on the push that makes the default branch, it compares with <code>HEAD^</code>, not with the empty tree.</li>
+</ul>
+<p><code>api-prose-check</code> writes each page into a temporary folder outside the project. The page is the text that <code>smalldocs api module NAME</code> prints. The step makes it with the same function of smalldocs, in one run for all the modules.</p>
+<p>Then it runs <code>.agents/skills/nossaifd/scripts/check.py</code> on the pages. A hard problem fails the step. Fix it in the docstring that it comes from. Without the prose role, which installs the checker, the step passes and says so.</p>
+<section id="the-rule-of-the-api-pages-for-the-commit-gate" class="level3">
+<h3 class="anchored" data-anchor-id="the-rule-of-the-api-pages-for-the-commit-gate">The rule of the API pages for the commit gate</h3>
+<p>A change to a docstring of a public function changes an API page. So the commit gate of agent_gest_git_skills asks for a record of the docs and of the prose. The gate must know which code files feed the API pages. The file <code>.agents/just/python/api_rule.py</code> tells it.</p>
+<ul>
+<li><strong>The interface.</strong> The file defines <code>is_api(path)</code>. It gives <code>True</code> when <code>path</code>, relative to the top of the repository, is a source file of the API pages. The gate loads the file from the parent commit and calls <code>is_api</code> on each changed path.</li>
+<li><strong>How it runs.</strong> The rule needs Python 3.9 or later and its standard library only. It runs with <code>python -I -B</code>, in the top of the repository, and writes nothing. It needs no YAML library. It reads the key <code>api</code> of <code>docs/_smalldocs.yml</code> with a small reader of its own.</li>
+<li><strong>Where it comes from.</strong> The profile package installs the folder <code>.agents/just/python</code> in each Python project, so every project gets the file. The installer does not let <code>files</code> of <code>profile.json</code> write into <code>.agents/just</code>. <code>.agents/generated.txt</code> does not name the file.</li>
+<li><strong>Without the api tool or the docs role,</strong> as <code>.agents/stack.json</code> records them, <code>is_api</code> gives <code>False</code> for every path. Then no step of <code>just check</code> runs <code>api-check</code>.</li>
+<li><strong>When the rule cannot read the settings of <code>api</code>,</strong> <code>is_api</code> gives <code>True</code> for each Python file. A file in <code>.agents</code>, <code>.claude</code> or <code>.codex</code>, or in <code>.agents/generated.txt</code>, still gives <code>False</code>. So the gate asks for a record, and a config that the rule cannot read never turns the gate off without notice. Without the api tool or the docs role, <code>is_api</code> still gives <code>False</code>. <code>is_api</code> never stops with an error.</li>
+</ul>
+<p>The rule is the rule of <code>api-check</code>. Only a Python file counts.</p>
+<ul>
+<li><strong>With the key <code>api</code></strong> in <code>docs/_smalldocs.yml</code>, the rule reads each section of the language <code>python</code>. For each package of <code>packages</code>, such as <code>pkg.sub</code>, it takes the folder <code>src/pkg/sub</code> or <code>pkg/sub</code>, or the module <code>src/pkg/sub.py</code> or <code>pkg/sub.py</code>. It finds them as Python imports them, first in <code>src/</code>. A folder with an <code>__init__.py</code> or a module wins over a folder without one. Each glob of <code>check</code> adds the files that it matches. The folders start at <code>root</code>, which smalldocs reads from <code>docs/</code>.</li>
+<li><strong>Without the key <code>api</code></strong>, the rule takes the packages that <code>api-check</code> finds. A package is a folder with an <code>__init__.py</code> at the top of the project or in <code>src/</code>. The rule also takes the module with the name of the project. A package or a module that is a test file, a file of the tools or a file of <code>.agents/generated.txt</code> does not count. In a package that counts, each file counts, as smalldocs documents each module of it.</li>
+</ul>
+<p>The reader of the key <code>api</code> reads a mapping or a list of mappings. A value is a plain value, a list in brackets on one line, or a list of lines that start with <code>- </code>. Other forms of YAML are out of its scope. For them, <code>is_api</code> gives <code>True</code> for each Python file, as for any config that it cannot read:</p>
+<ul>
+<li>a section in braces, such as <code>api: {packages: [pkg]}</code>;</li>
+<li>a dash alone on its line, with the mapping under it;</li>
+<li>a list in brackets over more than one line;</li>
+<li>a key in quotes;</li>
+<li>a value with <code>&gt;</code> or <code>|</code>;</li>
+<li>a key <code>api</code> with no section, or a section of Python with no <code>packages</code>, which smalldocs does not take either;</li>
+<li>a <code>root</code> out of the repository.</li>
+</ul>
+<p>On Python 3.10 or older, the rule has no <code>tomllib</code>. Then it does not read the name of the project from a dotted key, such as <code>project.name = &quot;my-app&quot;</code>. A package that only an install puts on the path, such as a folder <code>python/</code>, is out of the scope of the rule too.</p>
+<p><code>just live-api-rule</code> in this repository runs the live lab of the rule. It installs the profile and the docs role into a new project with the installer of jnterfaces, and makes a commit. Then it changes only a docstring, and checks that <code>is_api</code> of the parent commit accepts the file.</p>
+</section>
 </section>
 <section id="typecheck" class="level2">
 <h2 class="anchored" data-anchor-id="typecheck">typecheck</h2>
