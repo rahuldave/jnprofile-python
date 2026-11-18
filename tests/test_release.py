@@ -81,6 +81,23 @@ class WorkflowTest(unittest.TestCase):
         runs = [step.get('run') for step in job['steps']]
         self.assertTrue('just release-check' in runs or 'just check' in runs, 'CI does not run release-check')
 
+    def test_verify_installs_the_pinned_release_of_jlog(self):
+        # install.sh comes from the tag that it installs, so main cannot change what CI runs.
+        line = ('curl -fsSL https://raw.githubusercontent.com/rahuldave/jlog/v0.3.0/scripts/install.sh'
+                ' | sh -s -- --tag v0.3.0')
+        steps = self.jobs['verify']['steps']
+        installs = [step for step in steps if line in (step.get('run') or '').splitlines()]
+        self.assertEqual(len(installs), 1)
+        # The default shell of a run step has no pipefail, so a failed curl would still pass through sh.
+        self.assertEqual(installs[0].get('shell'), 'bash')
+        self.assertIn('echo "$HOME/.local/bin" >> "$GITHUB_PATH"', installs[0]['run'])
+        # setup-uv comes first, so install.sh finds uv and makes the environments of the plugins of jlog.
+        uv = next(i for i, step in enumerate(steps) if step.get('uses', '').startswith('astral-sh/setup-uv@'))
+        self.assertLess(uv, steps.index(installs[0]))
+        # Nothing builds jlog with cargo, and no cache keeps a build of it.
+        self.assertNotIn('cargo', WORKFLOW.read_text())
+        self.assertFalse([step for step in steps if step.get('uses', '').startswith('actions/cache@')])
+
 
 class CopyTest(unittest.TestCase):
     def test_the_script_is_the_copy_of_upstream(self):
