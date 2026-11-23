@@ -8,10 +8,13 @@ Each tool of the profile brings its packages, its recipes and its parts. The ins
 
 Every project of the profile gets the base, even a project with no tool.
 
+A fix round is one pass of fixes after a review. `just python::quick` gives an agent one fixed set of checks for each fix round, so the agent does not choose a set of its own. The tests of `quick` measure no coverage, and they write no report. So `coverage-check` and a coverage gate of the project, such as `--cov-fail-under` in the pytest settings, do not run in `quick`.
+
 | Recipe | What it does |
 |---|---|
 | `just setup` | Installs Python and every dependency into `.venv`, as `uv.lock` says |
 | `just python::version` | Prints the version of the project on one line, such as `1.2.3`. It is not a step of `just check` |
+| `just python::quick` | Runs the quick checks of a fix round, with no coverage: `fmt-check`, `lint`, `typecheck`, and the unit tests with a plain pytest. Each check runs only when its tool is installed, and the first check that fails stops the rest. With the tool `integration`, the tests in `tests/integration` do not run, as in `just test`. Extra arguments go to pytest: `just python::quick tests/unit`. The installer also gives the project `just quick`, which runs it in each profile that has it. It is not a step of `just check`, so run `just check` once on the final tree |
 
 The base adds `.venv/`, `.local/`, `__pycache__/`, `*.pyc`, `dist/` and `build/` to `.gitignore`. It adds `.venv/`, `__pycache__/` and `*.pyc` to `.worktreedisposable`. That file lists the ignored files that a command can make again. `just worktrees-prune` keeps a worktree that has ignored files, but it does not count these files.
 

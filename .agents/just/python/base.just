@@ -17,6 +17,17 @@ setup:
 version:
     @uv run --no-project --no-config --quiet --python '>=3.11' python -I -B {{python_steps}} version
 
+# Run the quick checks of a fix round, with no coverage: fmt-check, lint, typecheck, and the unit tests with a plain
+# pytest. Each check runs only when its tool is installed: when the module, module_file(), has its recipe. The first
+# check that fails stops the rest. As in just test, the tests in tests/integration do not run with the integration
+# tool. The tests write no report, so coverage-check does not read them. Extra arguments go to pytest:
+# just python::quick tests/unit. Run just check once on the final tree
+quick *args:
+    @if just --justfile {{quote(module_file())}} --summary | tr ' ' '\n' | grep -qx fmt-check; then just --justfile {{quote(module_file())}} fmt-check; fi
+    @if just --justfile {{quote(module_file())}} --summary | tr ' ' '\n' | grep -qx lint; then just --justfile {{quote(module_file())}} lint; fi
+    @if just --justfile {{quote(module_file())}} --summary | tr ' ' '\n' | grep -qx typecheck; then just --justfile {{quote(module_file())}} typecheck; fi
+    @if just --justfile {{quote(module_file())}} --summary | tr ' ' '\n' | grep -qx test; then just --justfile {{quote(module_file())}} _pytest quick "$@"; fi
+
 # pytest for test, cov and integration, with coverage: test and integration write their reports for coverage-check,
 # and cov shows the report. test and integration are steps of just check, and jlog logs only the lines of a recipe
 # with no shebang line, so each runs this script in one line, through just. module_file() is the file of this
@@ -35,6 +46,8 @@ _pytest name *args:
     printf '%s\n' $(just --justfile {{quote(module_file())}} --summary) | grep -qx integration || where=--ignore=.jnprofile-python
     case "$name" in
         cov) set -- --cov --cov-report=term-missing "$where" "$@" ;;
+        # --no-cov turns off a --cov of the addopts of the project too, so no coverage gate fails the run.
+        quick) set -- --no-cov "$where" "$@" ;;
         test)
             # A data file of its own, which begin deletes, so an --cov-append of the project adds to no old run.
             export COVERAGE_FILE=.jnprofile-python/.coverage
