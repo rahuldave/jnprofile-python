@@ -13,7 +13,7 @@ packages of the tool to a dependency group in `pyproject.toml`, adds its parts t
 
 | Tool | Packages, in the group | Recipes | Parts in config files | Lines in `.gitignore` and `.worktreedisposable` |
 |---|---|---|---|---|
-| none, always there | none | `setup`, `version` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
+| none, always there | none | `setup`, `version`, `quick` | none | `.venv/`, `__pycache__/`, `*.pyc`; also `.local/`, `dist/`, `build/` in `.gitignore` |
 | `lint` | ruff, in `lint` | `fmt`, `fmt-check`, `lint` | `ruff.toml` | `.ruff_cache/` |
 | `test` | pytest, pytest-cov, in `test` | `test`, `coverage-check`, `cov` | none | `.pytest_cache/`, `.coverage`, `htmlcov/`, `.jnprofile-python/` |
 | `integration` | pytest, pytest-cov, in `test` | `integration` | none | as for `test` |
@@ -46,6 +46,11 @@ settings win over the settings of the own file.
   the tag of a release. It prints nothing for no version or a dynamic
   version. It exits with 2 when it cannot read the file, or when the
   version is not in the normal form of PEP 440, such as `v1.2.3`.
+- **`just python::quick [ARGS...]`** runs `fmt-check`, `lint`, `typecheck`
+  and the unit tests with a plain pytest, each only when its tool is
+  installed. It measures no coverage and writes no report. Extra arguments
+  go to pytest. Use it in a fix round, and run `just check` once on the
+  final tree. `just quick` runs it in each language that has it.
 - **`just verify`** runs every installed check of each language, then `git
   diff --check`. For Python, the checks are `fmt-check`, `lint`, `integration`,
   `test`, `coverage-check`, `docstring-check`, `api-check` and
